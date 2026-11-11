@@ -1,0 +1,63 @@
+
+# ==========================================
+# Nexora.AI - Backend Requirements
+# Python 3.11 / 3.12
+# ==========================================
+
+# FastAPI & API Server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Configuration & Validation
+pydantic
+pydantic-settings
+python-dotenv
+
+# PostgreSQL & Database
+sqlalchemy
+psycopg[binary]
+alembic
+pgvector
+
+# Authentication & Security
+PyJWT[crypto]
+pwdlib[argon2]
+
+# Background Jobs
+redis
+celery
+websockets
+
+# HTTP Requests & Integrations
+httpx
+
+# AI Agents & LLM
+langgraph
+langchain
+langchain-ollama
+ollama
+
+# Website Crawling
+crawl4ai
+beautifulsoup4
+
+# RAG & Embeddings
+sentence-transformers
+rank-bm25
+numpy
+
+# Market Research
+tavily-python
+
+# Monitoring & Evaluation
+langfuse
+deepeval
+
+# Logging
+structlog
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
