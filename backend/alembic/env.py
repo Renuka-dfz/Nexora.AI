@@ -23,6 +23,7 @@ from app.core.database import Base
 import app.modules.company_knowledge.models
 import app.modules.marketing.models
 import app.modules.lead_management.models
+import app.modules.identity.models
 
 
 # Alembic configuration object
@@ -41,7 +42,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-# Shared metadata containing our 11 tables
+# Shared metadata containing the application tables.
 target_metadata = Base.metadata
 
 

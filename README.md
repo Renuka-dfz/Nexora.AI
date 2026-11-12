@@ -136,7 +136,7 @@ Nexora.AI/
 ### Before starting each feature
 
 1. Agree on the task, acceptance criteria, owner, and dependencies.
-2. Define/update request and response schemas in `docs/API_CONTRACTS.md` (create this file when contracts are finalized).
+2. Define/update request and response schemas in `docs/API_CONTRACTS.md`.
 3. Agree on endpoint paths, authentication, error responses, job status values, and whether work is synchronous or asynchronous.
 4. Member 1 implements the API/persistence boundary; Member 2 implements AI behind it; Member 3 integrates through the API.
 5. Test the integration before marking the task complete.
@@ -199,6 +199,8 @@ Open a GitHub Pull Request targeting `main`. Request review from another member;
 ## 8. API and State Contract Principles
 
 Use versioned endpoints such as `/api/v1/...` and Pydantic schemas. Final request/response fields are agreed by the team, not assumed from this example.
+
+Implemented company onboarding and company knowledge endpoints are documented in [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md).
 
 **Illustrative contract (not yet implemented):**
 

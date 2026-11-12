@@ -29,14 +29,56 @@ from app.modules.company_knowledge.models import (
 
 
 # ==================================================
-# COMPANY - READ
+# COMPANY - CREATE / READ / UPDATE
 # ==================================================
+
+def create_company(
+    db: Session,
+    company_name: str,
+    website_url: str | None = None,
+    company_overview: str | None = None,
+    industry: str | None = None,
+    headquarters: str | None = None,
+):
+    company = DimCompany(
+        company_name=company_name,
+        website_url=website_url,
+        company_overview=company_overview,
+        industry=industry,
+        headquarters=headquarters,
+    )
+
+    db.add(company)
+    db.commit()
+    db.refresh(company)
+
+    return company
+
 
 def get_company(
     db: Session,
     company_id: UUID,
 ):
     return db.get(DimCompany, company_id)
+
+
+def update_company(
+    db: Session,
+    company_id: UUID,
+    updates: dict[str, str | None],
+):
+    company = get_company(db, company_id)
+
+    if company is None:
+        return None
+
+    for field, value in updates.items():
+        setattr(company, field, value)
+
+    db.commit()
+    db.refresh(company)
+
+    return company
 
 
 # ==================================================
@@ -60,6 +102,13 @@ def get_category_by_name(
             DimCategory.category_name == category_name
         )
     )
+
+
+def get_category(
+    db: Session,
+    category_id: int,
+):
+    return db.get(DimCategory, category_id)
 
 
 # ==================================================
@@ -101,7 +150,7 @@ def create_company_information(
     category_id: int,
     source_id: UUID,
     title: str,
-    description: str,
+    description: str | None = None,
 ):
     fact = FactCompanyIntelligence(
         company_id=company_id,
@@ -127,28 +176,26 @@ def create_company_information(
 def get_company_information(
     db: Session,
     company_id: UUID,
+    category_id: int | None = None,
+    limit: int = 50,
+    offset: int = 0,
 ):
-    return db.scalars(
-        select(FactCompanyIntelligence).where(
-            FactCompanyIntelligence.company_id
-            == company_id
-        )
-    ).all()
+    stmt = select(FactCompanyIntelligence).where(
+        FactCompanyIntelligence.company_id == company_id
+    )
 
-
-def get_information_by_category(
-    db: Session,
-    company_id: UUID,
-    category_id: int,
-):
-    return db.scalars(
-        select(FactCompanyIntelligence).where(
-            FactCompanyIntelligence.company_id
-            == company_id,
-            FactCompanyIntelligence.category_id
-            == category_id,
+    if category_id is not None:
+        stmt = stmt.where(
+            FactCompanyIntelligence.category_id == category_id
         )
-    ).all()
+
+    stmt = (
+        stmt.order_by(FactCompanyIntelligence.extracted_at.desc())
+        .limit(max(1, min(limit, 100)))
+        .offset(max(0, offset))
+    )
+
+    return db.scalars(stmt).all()
 
 
 # ==================================================
@@ -159,8 +206,7 @@ def update_company_information(
     db: Session,
     company_id: UUID,
     fact_id: UUID,
-    title: str | None = None,
-    description: str | None = None,
+    updates: dict[str, str | None],
 ):
     fact = db.scalar(
         select(FactCompanyIntelligence).where(
@@ -172,11 +218,8 @@ def update_company_information(
     if fact is None:
         return None
 
-    if title is not None:
-        fact.title = title
-
-    if description is not None:
-        fact.description = description
+    for field, value in updates.items():
+        setattr(fact, field, value)
 
     fact.verification_status = "pending"
 

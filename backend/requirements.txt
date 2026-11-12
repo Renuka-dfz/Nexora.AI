@@ -13,6 +13,7 @@ python-multipart
 pydantic
 pydantic-settings
 python-dotenv
+email-validator
 
 # PostgreSQL & Database
 sqlalchemy
