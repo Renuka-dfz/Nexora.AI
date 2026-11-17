@@ -181,7 +181,8 @@ def get_company_information(
     offset: int = 0,
 ):
     stmt = select(FactCompanyIntelligence).where(
-        FactCompanyIntelligence.company_id == company_id
+        FactCompanyIntelligence.company_id == company_id,
+        FactCompanyIntelligence.is_current.is_(True),
     )
 
     if category_id is not None:
@@ -212,6 +213,7 @@ def update_company_information(
         select(FactCompanyIntelligence).where(
             FactCompanyIntelligence.fact_id == fact_id,
             FactCompanyIntelligence.company_id == company_id,
+            FactCompanyIntelligence.is_current.is_(True),
         )
     )
 

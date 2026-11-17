@@ -1,0 +1,10 @@
+celery
+redis
+sqlalchemy
+psycopg[binary]
+pydantic
+pydantic-settings
+python-dotenv
+httpx
+crawl4ai
+beautifulsoup4

@@ -135,3 +135,26 @@ class SourceListResponse(BaseModel):
     company_id: UUID
     total: int = Field(ge=0)
     items: list[SourceRead]
+
+
+class WebsiteCrawlRequest(BaseModel):
+    website_url: AnyHttpUrl
+
+
+class WebsiteCrawlJobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: UUID
+    company_id: UUID
+    source_id: UUID
+    website_url: str
+    status: Literal["queued", "running", "completed", "failed"]
+    sitemap_available: bool
+    pages_discovered: int
+    pages_processed: int
+    sections_saved: int
+    error_code: str | None
+    error_message: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None

@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     JWT_SECRET_KEY: str = Field(min_length=32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, gt=0)
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CRAWL_MAX_PAGES: int = Field(default=50, ge=1, le=500)
+    CRAWL_MAX_DEPTH: int = Field(default=2, ge=0, le=10)
+    CRAWL_PAGE_TIMEOUT_MS: int = Field(default=30000, gt=0)
+    CRAWL_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0)
+    CRAWL_MAX_RESPONSE_BYTES: int = Field(default=2097152, gt=0)
+    CRAWL_JSON_OUTPUT_DIR: Path = PROJECT_ROOT / "storage" / "crawl-json"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

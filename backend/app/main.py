@@ -4,6 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.database import engine
+from app.core.logging import configure_logging
 
 from app.modules.company_knowledge.routes import (
     router as company_knowledge_router,
@@ -21,6 +22,8 @@ from app.modules.lead_management.routes import (
 from app.modules.marketing.routes import (
     router as marketing_router,
 )
+
+configure_logging()
 
 
 # =====================================================

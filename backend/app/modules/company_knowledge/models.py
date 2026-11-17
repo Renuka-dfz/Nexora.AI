@@ -9,13 +9,15 @@ Defines the database tables, columns, constraints, and relationships for:
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
+    JSON,
     String,
     Text,
     TIMESTAMP,
@@ -24,14 +26,9 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# Reuse existing declarative Base if available, otherwise define Base
-try:
-    from app.core.database import Base
-except (ImportError, AttributeError):
-    class Base(DeclarativeBase):
-        pass
+from app.core.database import Base
 
 
 class DimCompany(Base):
@@ -132,6 +129,11 @@ class DimSource(Base):
             "company_id",
             name="uq_dim_source_company",
         ),
+        UniqueConstraint(
+            "company_id",
+            "source_url",
+            name="uq_dim_source_company_url",
+        ),
     )
 
     source_id: Mapped[uuid.UUID] = mapped_column(
@@ -174,6 +176,188 @@ class DimSource(Base):
     )
 
 
+class WebsiteCrawlJob(Base):
+    __tablename__ = "website_crawl_job"
+    __table_args__ = (
+        UniqueConstraint(
+            "job_id",
+            "company_id",
+            name="uq_website_crawl_job_company",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "company_id"],
+            ["dim_source.source_id", "dim_source.company_id"],
+            name="fk_website_crawl_job_source_company",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed')",
+            name="ck_website_crawl_job_status",
+        ),
+        CheckConstraint(
+            "pages_discovered >= 0 AND pages_processed >= 0 "
+            "AND sections_saved >= 0",
+            name="ck_website_crawl_job_counts",
+        ),
+    )
+
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("dim_company.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
+    requested_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app_user.user_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    website_url: Mapped[str] = mapped_column(Text, nullable=False)
+    sitemap_urls: Mapped[list[str]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+    )
+    sitemap_available: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="queued",
+        server_default=text("'queued'"),
+    )
+    pages_discovered: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    pages_processed: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    sections_saved: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    error_code: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    started_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+    )
+
+
+class CrawledPage(Base):
+    __tablename__ = "crawled_page"
+    __table_args__ = (
+        UniqueConstraint(
+            "page_id",
+            "company_id",
+            name="uq_crawled_page_company",
+        ),
+        UniqueConstraint(
+            "company_id",
+            "page_url",
+            name="uq_crawled_page_company_url",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "company_id"],
+            ["dim_source.source_id", "dim_source.company_id"],
+            name="fk_crawled_page_source_company",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["last_job_id", "company_id"],
+            ["website_crawl_job.job_id", "website_crawl_job.company_id"],
+            name="fk_crawled_page_job_company",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "crawl_status IN ('success', 'failed', 'skipped')",
+            name="ck_crawled_page_status",
+        ),
+    )
+
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("dim_company.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
+    last_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
+    page_url: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    meta_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    markdown_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    content_hash: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    crawl_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="success",
+        server_default=text("'success'"),
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    crawled_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
 class FactCompanyIntelligence(Base):
     """Stores actual company information extracted from websites."""
 
@@ -188,6 +372,17 @@ class FactCompanyIntelligence(Base):
         CheckConstraint(
             "verification_status IN ('pending', 'verified', 'rejected', 'conflicting')",
             name="ck_fact_intelligence_verification_status",
+        ),
+        ForeignKeyConstraint(
+            ["page_id", "company_id"],
+            ["crawled_page.page_id", "crawled_page.company_id"],
+            name="fk_fact_intelligence_page_company",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint(
+            "page_id",
+            "section_key",
+            name="uq_fact_intelligence_page_section",
         ),
     )
 
@@ -209,6 +404,28 @@ class FactCompanyIntelligence(Base):
     source_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,
+    )
+    page_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+    heading_path: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    section_order: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    section_key: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    is_current: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
     )
     title: Mapped[str] = mapped_column(
         String(255),
