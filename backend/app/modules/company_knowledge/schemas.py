@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -158,3 +159,71 @@ class WebsiteCrawlJobRead(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+# =====================================================
+# HYBRID COMPANY KNOWLEDGE ACCESS SCHEMAS
+# =====================================================
+
+class KnowledgeMode(str, Enum):
+    """Access mode for company knowledge queries."""
+    STRUCTURED = "structured"
+    SEMANTIC = "semantic"
+    HYBRID = "hybrid"
+
+
+class StructuredFactRead(BaseModel):
+    """Authoritative structured company fact from PostgreSQL."""
+    model_config = ConfigDict(from_attributes=True)
+
+    fact_id: UUID
+    company_id: UUID
+    category_id: int
+    category_name: str
+    title: str
+    description: str | None = None
+    source_url: str
+    heading_path: str | None = None
+    verification_status: str
+    is_current: bool = True
+    extracted_at: datetime | None = None
+
+
+class SemanticChunkRead(BaseModel):
+    """Contextual semantic evidence chunk from pgvector RAG."""
+    model_config = ConfigDict(from_attributes=True)
+
+    chunk_id: UUID
+    fact_id: UUID
+    company_id: UUID
+    source_url: str
+    heading_path: str | None = None
+    content: str
+    token_count: int | None = None
+    score: float | None = None  # Similarity / RRF score
+    vector_distance: float | None = None
+
+
+class KnowledgeQueryRequest(BaseModel):
+    """Request payload to query company knowledge through hybrid router."""
+    company_id: UUID
+    query: str | None = None
+    mode: KnowledgeMode | None = None
+    categories: list[str] | None = None
+    top_k_semantic: int = Field(default=5, ge=1, le=20)
+    limit_structured: int = Field(default=50, ge=1, le=200)
+    max_context_tokens: int = Field(default=2000, ge=100, le=8000)
+
+
+class CompanyKnowledgeContext(BaseModel):
+    """Consolidated company knowledge response with formatted prompt context."""
+    model_config = ConfigDict(from_attributes=True)
+
+    company_id: UUID
+    mode: KnowledgeMode
+    structured_facts: list[StructuredFactRead] = Field(default_factory=list)
+    semantic_results: list[SemanticChunkRead] = Field(default_factory=list)
+    context_text: str = ""
+    total_facts: int = 0
+    total_chunks: int = 0
+

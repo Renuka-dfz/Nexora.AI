@@ -60,10 +60,12 @@ from app.modules.company_knowledge.models import (
 from app.modules.company_knowledge.schemas import (
     CategoryListResponse,
     CompanyCreate,
+    CompanyKnowledgeContext,
     CompanyRead,
     CompanyUpdate,
     KnowledgeCreate,
     KnowledgeListResponse,
+    KnowledgeQueryRequest,
     KnowledgeRead,
     KnowledgeUpdate,
     KnowledgeVerificationUpdate,
@@ -558,6 +560,37 @@ def get_website_crawl_status(
 
 
 # =====================================================
+# 7b. TRIGGER RAG INDEXING FOR VERIFIED COMPANY FACTS
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/rag/index",
+    status_code=status.HTTP_200_OK,
+)
+def trigger_company_rag_indexing(
+    company_id: UUID,
+    batch_size: int = 50,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Idempotently index all verified and eligible Company Intelligence facts into pgvector.
+
+    Only users with 'admin' role can trigger company-wide indexing.
+    Unverified or pending facts are strictly omitted (fail-closed).
+    """
+    check_company_permission(db, user, company_id, allowed_roles=["admin"])
+    from app.rag.indexing import index_company_knowledge
+
+    result = index_company_knowledge(
+        db,
+        company_id=company_id,
+        batch_size=batch_size,
+    )
+    return result
+
+
+# =====================================================
 # 8. LIST COMPANY SOURCES
 # =====================================================
 
@@ -986,3 +1019,45 @@ def delete_company_knowledge(
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
     )
+
+
+# =====================================================
+# 16. HYBRID COMPANY KNOWLEDGE RETRIEVAL
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/knowledge/query",
+    response_model=CompanyKnowledgeContext,
+    status_code=status.HTTP_200_OK,
+)
+def query_company_knowledge(
+    company_id: UUID,
+    payload: KnowledgeQueryRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve company knowledge through the hybrid access layer.
+
+    Combines direct PostgreSQL structured queries with pgvector semantic retrieval.
+    Routes automatically based on request query/intent, or explicit mode override.
+    """
+    check_company_permission(
+        db,
+        user,
+        company_id,
+        allowed_roles=("admin", "user", "reviewer"),
+    )
+
+    if payload.company_id != company_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Payload company_id does not match route company_id",
+        )
+
+    from app.modules.company_knowledge.services.knowledge_router import (
+        retrieve_company_knowledge,
+    )
+
+    return retrieve_company_knowledge(db, payload)
+

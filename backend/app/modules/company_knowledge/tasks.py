@@ -107,6 +107,18 @@ def crawl_website_task(job_id: str) -> dict[str, str]:
             job.sitemap_available = validated_website.sitemap_available
             persist_crawl_output(db, job, output)
             status = job.status
+            company_id_str = str(job.company_id)
+
+        # Dispatch idempotent RAG indexing only after the DB persistence transaction has committed.
+        # Non-verified / pending facts will be safely reported as no_eligible_facts without bypassing policy.
+        try:
+            index_company_knowledge_task.delay(company_id_str)
+        except Exception as exc:
+            logger.warning(
+                "Failed to enqueue RAG indexing task for company %s: %s",
+                company_id_str,
+                exc,
+            )
 
         logger.info(
             "Website crawl pipeline finished",
@@ -114,9 +126,22 @@ def crawl_website_task(job_id: str) -> dict[str, str]:
                 "job_id": job_id,
                 "status": status,
                 "json_artifact": str(artifact_path),
+                "quality_report": (
+                    output.quality_report.model_dump()
+                    if output.quality_report
+                    else None
+                ),
             },
         )
-        return {"job_id": job_id, "status": status}
+        return {
+            "job_id": job_id,
+            "status": status,
+            "quality_report": (
+                output.quality_report.model_dump()
+                if output.quality_report
+                else None
+            ),
+        }
 
     except WebsiteValidationError as exc:
         _mark_failed(parsed_job_id, exc.code, exc.message)
@@ -141,3 +166,27 @@ def crawl_website_task(job_id: str) -> dict[str, str]:
             "The crawl pipeline could not complete. Check backend logs for details.",
         )
         raise
+
+
+@celery_app.task(
+    name="company_knowledge.index_company_knowledge",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def index_company_knowledge_task(company_id: str, batch_size: int = 50) -> dict:
+    """Celery task to idempotently index eligible verified company facts into PostgreSQL pgvector."""
+    from app.rag.indexing import index_company_knowledge
+
+    parsed_company_id = UUID(company_id)
+    with SessionLocal() as db:
+        result = index_company_knowledge(
+            db,
+            company_id=parsed_company_id,
+            batch_size=batch_size,
+        )
+        logger.info(
+            "Company knowledge RAG indexing task finished for %s: %s",
+            company_id,
+            result,
+        )
+        return result

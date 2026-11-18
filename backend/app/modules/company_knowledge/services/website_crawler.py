@@ -1,6 +1,8 @@
 import asyncio
 import hashlib
+import json
 import logging
+import re
 from collections import deque
 from urllib.parse import urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
@@ -46,14 +48,32 @@ def _plain_metadata(value: object) -> object:
 
 
 def _get_meta_description(html: str) -> str | None:
+    import json
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html or "", "html.parser")
-    meta = soup.find("meta", attrs={"name": "description"})
+    meta = soup.find("meta", attrs={"name": re.compile(r"^description$", re.I)})
     if meta is None:
-        meta = soup.find("meta", attrs={"property": "og:description"})
+        meta = soup.find("meta", attrs={"property": re.compile(r"^og:description$", re.I)})
+    if meta is None:
+        meta = soup.find("meta", attrs={"name": re.compile(r"^twitter:description$", re.I)})
     content = meta.get("content") if meta else None
-    return " ".join(content.split())[:4000] if content else None
+    if content and str(content).strip():
+        return " ".join(str(content).split())[:4000]
+
+    for script in soup.find_all("script", attrs={"type": re.compile(r"application/ld\+json", re.I)}):
+        try:
+            payload = json.loads(script.string or "")
+            items = payload if isinstance(payload, list) else [payload]
+            for item in items:
+                if isinstance(item, dict) and item.get("description"):
+                    desc = str(item["description"]).strip()
+                    if desc:
+                        return " ".join(desc.split())[:4000]
+        except Exception:
+            continue
+
+    return None
 
 
 def _links_from_result(result: object, page_url: str, host: str) -> list[str]:
@@ -278,7 +298,7 @@ async def discover_and_extract(
                 if not isinstance(title, str) or not title.strip():
                     from bs4 import BeautifulSoup
 
-                    soup = BeautifulSoup(cleaned_html, "html.parser")
+                    soup = BeautifulSoup(raw_html or cleaned_html, "html.parser")
                     title_element = soup.find("title")
                     title = (
                         title_element.get_text(" ", strip=True)
@@ -286,7 +306,7 @@ async def discover_and_extract(
                         else None
                     )
 
-                meta_description = _get_meta_description(cleaned_html)
+                meta_description = _get_meta_description(raw_html or cleaned_html)
                 sections = clean_and_split_page(
                     html=cleaned_html,
                     page_url=result_url,

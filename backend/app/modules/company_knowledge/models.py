@@ -26,7 +26,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
 
@@ -446,6 +446,9 @@ class FactCompanyIntelligence(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+    # Synonym for fact_id for RAG indexing compatibility
+    intelligence_id = synonym("fact_id")
 
     # Relationships
     company: Mapped["DimCompany"] = relationship(

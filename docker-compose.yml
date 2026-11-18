@@ -26,7 +26,7 @@ services:
       - --loglevel=INFO
       - --concurrency=1
     environment:
-      DATABASE_URL: ${WORKER_DATABASE_URL:?Set WORKER_DATABASE_URL to a database URL reachable from Docker}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       REDIS_URL: redis://redis:6379/0
       CRAWL_MAX_PAGES: ${CRAWL_MAX_PAGES:-50}
