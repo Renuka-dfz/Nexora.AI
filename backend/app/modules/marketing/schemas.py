@@ -18,6 +18,11 @@ ApprovalStatus = Literal["draft", "pending", "approved", "rejected"]
 ConnectionStatus = Literal["connected", "disconnected", "expired"]
 MetricPeriod = Literal["daily", "lifetime"]
 
+# Centralized runtime constants matching PostgreSQL dim_content constraints
+ALLOWED_APPROVAL_STATUSES: set[str] = {"draft", "pending", "approved", "rejected"}
+ALLOWED_GENERATION_TYPES: set[str] = {"ai", "manual"}
+ALLOWED_PLATFORMS: set[str] = {"linkedin", "instagram"}
+
 
 class ContentCreate(BaseModel):
     company_id: UUID

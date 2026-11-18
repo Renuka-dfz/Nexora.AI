@@ -1,14 +1,18 @@
 """
 Nexora.AI - Deterministic Company Knowledge Query Router & Hybrid Retrieval Service.
 
-Combines direct PostgreSQL queries with pgvector-based semantic RAG retrieval.
-Automatically routes requests based on task intent and caller parameters without
-requiring an expensive extra LLM call.
+Combines direct PostgreSQL queries with pgvector-based semantic RAG retrieval and
+Cross-Encoder reranking. Automatically routes requests based on task intent and caller
+parameters without requiring an expensive extra LLM call.
 
 Architecture:
 - Deterministic router: selects STRUCTURED, SEMANTIC, or HYBRID mode.
-- Fallback resilience: If pgvector is empty or returns no matches, seamlessly falls back
-  to structured PostgreSQL facts without raising exceptions.
+- Category-aware intent detection: detects target knowledge categories (e.g. Case Studies)
+  and propagates them to both structured queries and pgvector/keyword retrieval.
+- Cross-Encoder reranking: candidates are reranked using ms-marco-MiniLM-L6-v2 enriched
+  with company and category context.
+- Fallback resilience: If pgvector is empty or returns no matches, falls back to
+  targeted structured PostgreSQL facts without presenting unrelated facts as answers.
 - Deduplication: In hybrid mode, authoritative structured facts take precedence while
   semantic chunks provide contextual evidence and deep dive citations.
 - Company boundary: Every query strictly enforces authorized company_id and trust status.
@@ -71,14 +75,130 @@ HYBRID_PATTERNS = [
     re.compile(r"\b(pitch|lead\s*briefing|proposal|recommendation)\b", re.I),
 ]
 
+# Mapping query intent patterns to Company Intelligence categories
+CATEGORY_INTENT_PATTERNS: list[tuple[re.Pattern, list[str]]] = [
+    (
+        re.compile(
+            r"\b(case\s*stud(y|ies)|customer\s*stor(y|ies)|success\s*stor(y|ies)|client\s*stor(y|ies)|outcomes|use\s*cases?)\b",
+            re.I,
+        ),
+        ["Case Studies"],
+    ),
+    (
+        re.compile(
+            r"\b(tech\s*stack|technolog(y|ies)|tools|frameworks|languages|cloud|infrastructure|architecture)\b",
+            re.I,
+        ),
+        ["Technology Stack"],
+    ),
+    (
+        re.compile(
+            r"\b(services?|offerings?|capabilities)\b",
+            re.I,
+        ),
+        ["Services"],
+    ),
+    (
+        re.compile(
+            r"\b(solutions?)\b",
+            re.I,
+        ),
+        ["Solutions"],
+    ),
+    (
+        re.compile(
+            r"\b(products?|platforms?|features?|tooling)\b",
+            re.I,
+        ),
+        ["Products"],
+    ),
+    (
+        re.compile(
+            r"\b(overview|about\s*(us|company)?|who\s*is|what\s*does\s*.*do|leadership|founders?|executives?)\b",
+            re.I,
+        ),
+        ["Company Overview"],
+    ),
+    (
+        re.compile(
+            r"\b(contact|phone|email|address|headquarters|location|office)\b",
+            re.I,
+        ),
+        ["Contact Information"],
+    ),
+    (
+        re.compile(
+            r"\b(pricing|cost|plans|tiers|rates)\b",
+            re.I,
+        ),
+        ["Pricing"],
+    ),
+    (
+        re.compile(
+            r"\b(careers?|jobs?|openings?|hiring)\b",
+            re.I,
+        ),
+        ["Careers"],
+    ),
+    (
+        re.compile(
+            r"\b(innovations?|research|patents?|whitepapers?)\b",
+            re.I,
+        ),
+        ["Innovations and Research", "Knowledge Resources"],
+    ),
+    (
+        re.compile(
+            r"\b(customers?|clients?|testimonials?)\b",
+            re.I,
+        ),
+        ["Customers"],
+    ),
+    (
+        re.compile(
+            r"\b(achievements?|awards?|recognition|milestones?)\b",
+            re.I,
+        ),
+        ["Achievements"],
+    ),
+    (
+        re.compile(
+            r"\b(industr(y|ies)|verticals?|healthcare|finance|banking|retail|manufacturing)\b",
+            re.I,
+        ),
+        ["Industry Expertise"],
+    ),
+]
+
 # Foundational categories loaded when hybrid mode has no specific category filter
-DEFAULT_HYBRID_CATEGORIES = [
+# Included Case Studies so case evidence is accessible in hybrid marketing/lead contexts
+DEFAULT_HYBRID_CATEGORIES: list[str] = [
     "Company Overview",
     "Services",
     "Products",
     "Technology Stack",
     "Solutions",
+    "Case Studies",
 ]
+
+
+def detect_query_categories(query: str) -> list[str]:
+    """
+    Detect target Company Intelligence categories based on query intent.
+    
+    Returns a deduplicated list of category names matching regex patterns.
+    """
+    if not query or not query.strip():
+        return []
+
+    detected: list[str] = []
+    for pattern, categories in CATEGORY_INTENT_PATTERNS:
+        if pattern.search(query):
+            for cat in categories:
+                if cat not in detected:
+                    detected.append(cat)
+
+    return detected
 
 
 def route_knowledge_query(request: KnowledgeQueryRequest) -> KnowledgeMode:
@@ -134,8 +254,11 @@ def retrieve_company_knowledge(
     Guarantees:
     - Company exists in dim_company.
     - Zero data leakage across companies.
-    - Graceful fallback: If semantic pgvector chunks are empty, structured
-      PostgreSQL facts are returned rather than an error.
+    - Propagates detected category intent into semantic/hybrid retrieval.
+    - Applies Cross-Encoder reranking to pick the highest confidence chunks.
+    - Graceful fallback: If semantic pgvector chunks are empty, falls back to
+      targeted structured facts only when category intent was identified,
+      avoiding presenting unrelated facts as answers.
     - Deduplicates hybrid facts and chunks.
     """
     company = db.get(DimCompany, request.company_id)
@@ -146,6 +269,12 @@ def retrieve_company_knowledge(
     selected_mode = route_knowledge_query(request)
     query_str = (request.query or "").strip()
 
+    # Detect query category intent
+    detected_categories = detect_query_categories(query_str)
+    effective_categories = (
+        list(request.categories) if request.categories else detected_categories
+    )
+
     structured_facts: list[StructuredFactRead] = []
     semantic_chunks: list[SemanticChunkRead] = []
 
@@ -153,26 +282,31 @@ def retrieve_company_knowledge(
     # 1. STRUCTURED MODE
     # =====================================================
     if selected_mode == KnowledgeMode.STRUCTURED:
+        target_structured_cats = request.categories or (
+            detected_categories if detected_categories else None
+        )
         structured_facts = get_structured_facts(
             db,
             company_id=request.company_id,
-            categories=request.categories,
+            categories=target_structured_cats,
             limit=request.limit_structured,
         )
 
     # =====================================================
-    # 2. SEMANTIC MODE (pgvector RAG)
+    # 2. SEMANTIC MODE (pgvector RAG + Cross-Encoder Rerank)
     # =====================================================
     elif selected_mode == KnowledgeMode.SEMANTIC:
         raw_evidence: list[RetrievedEvidence] = []
         if query_str:
             try:
-                # Use pure pgvector cosine-distance search
+                # Semantic search with Cross-Encoder reranking & category awareness
                 raw_evidence = semantic_retrieve(
                     db=db,
                     company_id=request.company_id,
                     query=query_str,
                     top_k=request.top_k_semantic,
+                    target_categories=effective_categories,
+                    rerank=True,
                 )
             except Exception as exc:
                 logger.warning(
@@ -186,10 +320,12 @@ def retrieve_company_knowledge(
                         company_id=request.company_id,
                         query=query_str,
                         top_k=request.top_k_semantic,
+                        target_categories=effective_categories,
+                        rerank=True,
                     )
                 except Exception as inner_exc:
                     logger.warning(
-                        "Hybrid retrieval also failed for company %s: %s; falling back to structured facts",
+                        "Hybrid retrieval also failed for company %s: %s",
                         request.company_id,
                         inner_exc,
                     )
@@ -207,52 +343,91 @@ def retrieve_company_knowledge(
                     token_count=None,
                     score=item.rrf_score,
                     vector_distance=item.vector_distance,
+                    rerank_score=item.rerank_score,
+                    category_name=item.category_name,
                 )
             )
 
-        # Fallback: If pgvector is empty / returned no chunks, fallback to structured facts
+        # Fallback: If semantic search returned no chunks, fallback to structured facts
+        # ONLY if specific category intent was detected or requested, avoiding dumping
+        # unrelated facts for questions that simply have no evidence.
         if not semantic_chunks:
-            logger.info(
-                "No semantic chunks retrieved for company %s; falling back to structured PostgreSQL facts",
-                request.company_id,
-            )
-            structured_facts = get_structured_facts(
-                db,
-                company_id=request.company_id,
-                categories=request.categories,
-                limit=request.limit_structured,
-            )
+            if effective_categories:
+                logger.info(
+                    "No semantic chunks retrieved for company %s; falling back to structured facts for categories %s",
+                    request.company_id,
+                    effective_categories,
+                )
+                structured_facts = get_structured_facts(
+                    db,
+                    company_id=request.company_id,
+                    categories=effective_categories,
+                    limit=request.limit_structured,
+                )
+            else:
+                logger.info(
+                    "No semantic chunks retrieved and no category targeted for company %s; returning empty context",
+                    request.company_id,
+                )
+                structured_facts = []
 
     # =====================================================
-    # 3. HYBRID MODE (PostgreSQL + pgvector RAG)
+    # 3. HYBRID MODE (PostgreSQL + pgvector RAG + Reranking)
     # =====================================================
     elif selected_mode == KnowledgeMode.HYBRID:
         # A. Structured Baseline: authoritative facts take precedence
-        target_categories = request.categories or DEFAULT_HYBRID_CATEGORIES
+        if request.categories:
+            structured_categories = request.categories
+            structured_limit = request.limit_structured
+        elif detected_categories:
+            # Prioritize detected category intent to prevent bloating context with unrelated categories
+            structured_categories = detected_categories
+            structured_limit = min(request.limit_structured, 12) if query_str else request.limit_structured
+        else:
+            structured_categories = DEFAULT_HYBRID_CATEGORIES
+            structured_limit = min(request.limit_structured, 12) if query_str else request.limit_structured
+
         structured_facts = get_structured_facts(
             db,
             company_id=request.company_id,
-            categories=target_categories,
-            limit=request.limit_structured,
+            categories=structured_categories,
+            limit=structured_limit,
         )
 
-        # B. Semantic Enrichment: retrieve relevant chunks for supporting proof
+        # B. Semantic Enrichment: retrieve relevant chunks with hybrid search & reranking
         raw_evidence = []
         if query_str:
             try:
-                raw_evidence = semantic_retrieve(
+                raw_evidence = hybrid_retrieve(
                     db=db,
                     company_id=request.company_id,
                     query=query_str,
                     top_k=request.top_k_semantic,
+                    target_categories=effective_categories,
+                    rerank=True,
                 )
             except Exception as exc:
                 logger.warning(
-                    "Semantic search failed in hybrid mode for company %s: %s",
+                    "Hybrid retrieval failed in hybrid mode for company %s: %s; falling back to semantic_retrieve",
                     request.company_id,
                     exc,
                 )
-                raw_evidence = []
+                try:
+                    raw_evidence = semantic_retrieve(
+                        db=db,
+                        company_id=request.company_id,
+                        query=query_str,
+                        top_k=request.top_k_semantic,
+                        target_categories=effective_categories,
+                        rerank=True,
+                    )
+                except Exception as inner_exc:
+                    logger.warning(
+                        "Semantic retrieval also failed in hybrid mode for company %s: %s",
+                        request.company_id,
+                        inner_exc,
+                    )
+                    raw_evidence = []
 
         seen_chunk_ids: set[str] = set()
         for item in raw_evidence:
@@ -271,6 +446,8 @@ def retrieve_company_knowledge(
                     token_count=None,
                     score=item.rrf_score,
                     vector_distance=item.vector_distance,
+                    rerank_score=item.rerank_score,
+                    category_name=item.category_name,
                 )
             )
 
@@ -282,6 +459,7 @@ def retrieve_company_knowledge(
         semantic_chunks=semantic_chunks,
         company_name=company_name,
         max_tokens=request.max_context_tokens,
+        max_facts_per_category=4 if query_str else None,
     )
 
     logger.info(

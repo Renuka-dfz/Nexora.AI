@@ -75,6 +75,7 @@ from app.modules.company_knowledge.schemas import (
     WebsiteCrawlJobRead,
     WebsiteCrawlRequest,
 )
+from app.rag.llm import GroundedRAGResponse
 from app.modules.company_knowledge.services.website_validation import (
     WebsiteValidationError,
     validate_website,
@@ -1060,4 +1061,59 @@ def query_company_knowledge(
     )
 
     return retrieve_company_knowledge(db, payload)
+
+
+# =====================================================
+# 17. GROUNDED RAG ANSWER GENERATION
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/knowledge/answer",
+    response_model=GroundedRAGResponse,
+    status_code=status.HTTP_200_OK,
+)
+def answer_company_knowledge(
+    company_id: UUID,
+    payload: KnowledgeQueryRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an evidence-grounded answer to a user question using PostgreSQL + pgvector RAG
+    and local Ollama (qwen3.5:4b).
+
+    Strict fail-closed guarantee:
+    If the question cannot be answered from verified data, or if the user asks a wrong or
+    unsupported question, the system explicitly returns:
+    "I don't have enough information about this."
+    """
+    check_company_permission(
+        db,
+        user,
+        company_id,
+        allowed_roles=("admin", "user", "reviewer"),
+    )
+
+    if payload.company_id != company_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Payload company_id does not match route company_id",
+        )
+
+    if not payload.query or not payload.query.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Query is required for answer generation",
+        )
+
+    from app.modules.company_knowledge.services.knowledge_router import (
+        retrieve_company_knowledge,
+    )
+    from app.rag.llm import generate_grounded_answer
+
+    context = retrieve_company_knowledge(db, payload)
+    return generate_grounded_answer(
+        question=payload.query,
+        company_context=context.context_text,
+    )
 

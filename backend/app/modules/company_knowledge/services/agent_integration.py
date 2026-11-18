@@ -32,6 +32,8 @@ MARKETING_DEFAULT_CATEGORIES = [
     "Products",
     "Technology Stack",
     "Solutions",
+    "Industry Expertise",
+    "Case Studies",
     "Brand Identities",
 ]
 

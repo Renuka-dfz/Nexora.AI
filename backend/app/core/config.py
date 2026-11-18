@@ -17,11 +17,30 @@ class Settings(BaseSettings):
     CRAWL_MAX_RESPONSE_BYTES: int = Field(default=2097152, gt=0)
     CRAWL_JSON_OUTPUT_DIR: Path = PROJECT_ROOT / "storage" / "crawl-json"
 
+    # Ollama Local LLM Configuration (configured for qwen3.5:2b)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen3.5:2b"
+    OLLAMA_TEMPERATURE: float = 0.1
+    OLLAMA_TIMEOUT_SECONDS: float = 90.0
+
+    # External Market Research (Tavily)
+    TAVILY_API_KEY: str | None = None
+
+    # Social Integrations - LinkedIn API
+    LINKEDIN_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_SECRET: str = ""
+    LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/linkedin/callback"
+
+    # Social Integrations - Instagram Graph API (Meta)
+    INSTAGRAM_CLIENT_ID: str = ""
+    INSTAGRAM_CLIENT_SECRET: str = ""
+    INSTAGRAM_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/instagram/callback"
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
-
+ 
  
 settings = Settings()

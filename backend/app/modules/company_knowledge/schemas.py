@@ -202,6 +202,8 @@ class SemanticChunkRead(BaseModel):
     token_count: int | None = None
     score: float | None = None  # Similarity / RRF score
     vector_distance: float | None = None
+    rerank_score: float | None = None
+    category_name: str | None = None
 
 
 class KnowledgeQueryRequest(BaseModel):

@@ -37,6 +37,7 @@ def prepare_knowledge_context(
     semantic_chunks: Sequence[SemanticChunkRead] | None = None,
     company_name: str | None = None,
     max_tokens: int = DEFAULT_MAX_CONTEXT_TOKENS,
+    max_facts_per_category: int | None = None,
 ) -> str:
     """
     Format structured facts and semantic chunks into prompt-ready markdown.
@@ -46,6 +47,7 @@ def prepare_knowledge_context(
         semantic_chunks: List of semantic chunks from pgvector RAG.
         company_name: Optional company display name.
         max_tokens: Maximum token budget for the formatted context block.
+        max_facts_per_category: Optional limit on structured facts included per category.
 
     Returns:
         Formatted context string wrapped in security tags.
@@ -102,7 +104,12 @@ def prepare_knowledge_context(
             lines.append(cat_header)
             current_length += len(cat_header) + 1
 
-            for fact in category_facts:
+            facts_to_include = (
+                category_facts[:max_facts_per_category]
+                if max_facts_per_category is not None
+                else category_facts
+            )
+            for fact in facts_to_include:
                 title = fact.title.strip()
                 desc = f": {fact.description.strip()}" if fact.description else ""
                 source = f" (Source: {fact.source_url})" if fact.source_url else ""
@@ -134,11 +141,17 @@ def prepare_knowledge_context(
                 continue
             seen_chunk_hashes.add(chunk_key)
 
+            cat_info = f" [Category: {chunk.category_name}]" if getattr(chunk, "category_name", None) else ""
             heading = f" [{chunk.heading_path}]" if chunk.heading_path else ""
             source = f" (Source: {chunk.source_url})" if chunk.source_url else ""
-            score_info = f" [Score: {chunk.score:.2f}]" if chunk.score is not None else ""
+            if getattr(chunk, "rerank_score", None) is not None:
+                score_info = f" [Rerank Score: {chunk.rerank_score:.2f}]"
+            elif chunk.score is not None:
+                score_info = f" [Score: {chunk.score:.2f}]"
+            else:
+                score_info = ""
 
-            chunk_block = f"#### Evidence {idx}{heading}{score_info}\n{chunk_content}\n{source}"
+            chunk_block = f"#### Evidence {idx}{cat_info}{heading}{score_info}\n{chunk_content}\n{source}"
 
             if current_length + len(chunk_block) + 20 > max_chars:
                 lines.append("... [Additional semantic evidence truncated to fit context budget]")
