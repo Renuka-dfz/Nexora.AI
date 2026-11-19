@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  crawl-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    command:
+      - python
+      - -m
+      - celery
+      - -A
+      - app.core.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+      - --concurrency=1
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      REDIS_URL: redis://redis:6379/0
+      CRAWL_MAX_PAGES: ${CRAWL_MAX_PAGES:-50}
+      CRAWL_MAX_DEPTH: ${CRAWL_MAX_DEPTH:-2}
+      CRAWL_PAGE_TIMEOUT_MS: ${CRAWL_PAGE_TIMEOUT_MS:-30000}
+      CRAWL_HTTP_TIMEOUT_SECONDS: ${CRAWL_HTTP_TIMEOUT_SECONDS:-10}
+      CRAWL_MAX_RESPONSE_BYTES: ${CRAWL_MAX_RESPONSE_BYTES:-2097152}
+      CRAWL_JSON_OUTPUT_DIR: /app/data/crawl-json
+    volumes:
+      - crawl_json_data:/app/data/crawl-json
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  crawl_json_data:

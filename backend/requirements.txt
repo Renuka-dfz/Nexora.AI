@@ -39,26 +39,49 @@ langchain
 langchain-ollama
 ollama
 
+# OpenAI API Client
+# Used by RAGAS local Ollama compatibility layer
+# and optional OpenAI image generation.
+# OpenAI SDK + structured output compatibility
+openai>=2.8.0,<3.0.0
+instructor==1.17.0
+
 # Website Crawling
 crawl4ai
 beautifulsoup4
 
-# RAG & Embeddings
+# ==========================================
+# RAG Pipeline
+# ==========================================
+
+# Semantic Chunking & Local Embeddings
 sentence-transformers
-rank-bm25
 numpy
+
+# Hybrid Retrieval
+# PostgreSQL FTS + pgvector + optional BM25
+rank-bm25
 
 # Market Research
 tavily-python
 
+# ==========================================
 # Monitoring & Evaluation
+# ==========================================
+
+# Agent Tracing & Observability
 langfuse
+
+# RAG Evaluation
+ragas==0.4.4
 deepeval
 
 # Logging
 structlog
 
-# Testing
+# ==========================================
+# Testing & Quality
+# ==========================================
 pytest
 pytest-asyncio
 pytest-cov

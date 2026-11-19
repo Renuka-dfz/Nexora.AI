@@ -22,6 +22,8 @@ Uses:
 No CompanyMembership dependency.
 """
 
+import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import (
@@ -52,27 +54,39 @@ from app.modules.company_knowledge.models import (
     DimCompany,
     DimSource,
     FactCompanyIntelligence,
+    WebsiteCrawlJob,
 )
 
 from app.modules.company_knowledge.schemas import (
     CategoryListResponse,
     CompanyCreate,
+    CompanyKnowledgeContext,
     CompanyRead,
     CompanyUpdate,
     KnowledgeCreate,
     KnowledgeListResponse,
+    KnowledgeQueryRequest,
     KnowledgeRead,
     KnowledgeUpdate,
     KnowledgeVerificationUpdate,
     SourceCreate,
     SourceListResponse,
     SourceRead,
+    WebsiteCrawlJobRead,
+    WebsiteCrawlRequest,
 )
+from app.rag.llm import GroundedRAGResponse
+from app.modules.company_knowledge.services.website_validation import (
+    WebsiteValidationError,
+    validate_website,
+)
+from app.modules.company_knowledge.tasks import crawl_website_task
 
 
 router = APIRouter(
     tags=["Company Intelligence"]
 )
+logger = logging.getLogger(__name__)
 
 
 # =====================================================
@@ -415,6 +429,168 @@ def create_source(
     return source
 
 
+@router.post(
+    "/companies/{company_id}/website-crawls",
+    response_model=WebsiteCrawlJobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_website_crawl(
+    company_id: UUID,
+    request: WebsiteCrawlRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_company_permission(
+        db,
+        user,
+        company_id,
+        allowed_roles=("admin",),
+    )
+
+    try:
+        validated = await validate_website(str(request.website_url))
+    except WebsiteValidationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+    source = db.scalar(
+        select(DimSource).where(
+            DimSource.company_id == company_id,
+            DimSource.source_url == validated.website_url,
+        )
+    )
+    if source is None:
+        source = DimSource(
+            company_id=company_id,
+            source_url=validated.website_url,
+            source_type="website",
+        )
+        db.add(source)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            source = db.scalar(
+                select(DimSource).where(
+                    DimSource.company_id == company_id,
+                    DimSource.source_url == validated.website_url,
+                )
+            )
+            if source is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Website source creation conflict",
+                ) from None
+    source.source_type = "website"
+
+    job = WebsiteCrawlJob(
+        company_id=company_id,
+        source_id=source.source_id,
+        requested_by=user.user_id,
+        website_url=validated.website_url,
+        sitemap_urls=validated.sitemap_urls,
+        sitemap_available=validated.sitemap_available,
+        status="queued",
+    )
+    db.add(job)
+
+    try:
+        db.commit()
+        db.refresh(job)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "crawl_job_conflict",
+                "message": "A crawl job could not be created for this website.",
+            },
+        ) from None
+
+    try:
+        crawl_website_task.delay(str(job.job_id))
+    except Exception as exc:
+        logger.exception(
+            "Could not enqueue website crawl",
+            extra={"job_id": str(job.job_id)},
+        )
+        job.status = "failed"
+        job.error_code = "queue_unavailable"
+        job.error_message = (
+            "The crawl queue is unavailable. Check that Redis and a Celery worker are running."
+        )
+        job.finished_at = datetime.now(timezone.utc)
+        db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": job.error_code,
+                "message": job.error_message,
+                "job_id": str(job.job_id),
+            },
+        ) from exc
+
+    return job
+
+
+@router.get(
+    "/companies/{company_id}/website-crawls/{job_id}",
+    response_model=WebsiteCrawlJobRead,
+)
+def get_website_crawl_status(
+    company_id: UUID,
+    job_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_company_permission(db, user, company_id)
+    job = db.scalar(
+        select(WebsiteCrawlJob).where(
+            WebsiteCrawlJob.company_id == company_id,
+            WebsiteCrawlJob.job_id == job_id,
+        )
+    )
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Website crawl job not found",
+        )
+    return job
+
+
+# =====================================================
+# 7b. TRIGGER RAG INDEXING FOR VERIFIED COMPANY FACTS
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/rag/index",
+    status_code=status.HTTP_200_OK,
+)
+def trigger_company_rag_indexing(
+    company_id: UUID,
+    batch_size: int = 50,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Idempotently index all verified and eligible Company Intelligence facts into pgvector.
+
+    Only users with 'admin' role can trigger company-wide indexing.
+    Unverified or pending facts are strictly omitted (fail-closed).
+    """
+    check_company_permission(db, user, company_id, allowed_roles=["admin"])
+    from app.rag.indexing import index_company_knowledge
+
+    result = index_company_knowledge(
+        db,
+        company_id=company_id,
+        batch_size=batch_size,
+    )
+    return result
+
+
 # =====================================================
 # 8. LIST COMPANY SOURCES
 # =====================================================
@@ -559,8 +735,8 @@ def list_company_knowledge(
         )
 
     filters = [
-        FactCompanyIntelligence.company_id
-        == company_id
+        FactCompanyIntelligence.company_id == company_id,
+        FactCompanyIntelligence.is_current.is_(True),
     ]
 
     if category_id is not None:
@@ -688,6 +864,7 @@ def get_company_knowledge(
             == company_id,
             FactCompanyIntelligence.fact_id
             == fact_id,
+            FactCompanyIntelligence.is_current.is_(True),
         )
     )
 
@@ -783,6 +960,7 @@ def verify_company_knowledge(
             == company_id,
             FactCompanyIntelligence.fact_id
             == fact_id,
+            FactCompanyIntelligence.is_current.is_(True),
         )
     )
 
@@ -842,3 +1020,100 @@ def delete_company_knowledge(
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
     )
+
+
+# =====================================================
+# 16. HYBRID COMPANY KNOWLEDGE RETRIEVAL
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/knowledge/query",
+    response_model=CompanyKnowledgeContext,
+    status_code=status.HTTP_200_OK,
+)
+def query_company_knowledge(
+    company_id: UUID,
+    payload: KnowledgeQueryRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve company knowledge through the hybrid access layer.
+
+    Combines direct PostgreSQL structured queries with pgvector semantic retrieval.
+    Routes automatically based on request query/intent, or explicit mode override.
+    """
+    check_company_permission(
+        db,
+        user,
+        company_id,
+        allowed_roles=("admin", "user", "reviewer"),
+    )
+
+    if payload.company_id != company_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Payload company_id does not match route company_id",
+        )
+
+    from app.modules.company_knowledge.services.knowledge_router import (
+        retrieve_company_knowledge,
+    )
+
+    return retrieve_company_knowledge(db, payload)
+
+
+# =====================================================
+# 17. GROUNDED RAG ANSWER GENERATION
+# =====================================================
+
+@router.post(
+    "/companies/{company_id}/knowledge/answer",
+    response_model=GroundedRAGResponse,
+    status_code=status.HTTP_200_OK,
+)
+def answer_company_knowledge(
+    company_id: UUID,
+    payload: KnowledgeQueryRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an evidence-grounded answer to a user question using PostgreSQL + pgvector RAG
+    and local Ollama (qwen3.5:4b).
+
+    Strict fail-closed guarantee:
+    If the question cannot be answered from verified data, or if the user asks a wrong or
+    unsupported question, the system explicitly returns:
+    "I don't have enough information about this."
+    """
+    check_company_permission(
+        db,
+        user,
+        company_id,
+        allowed_roles=("admin", "user", "reviewer"),
+    )
+
+    if payload.company_id != company_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Payload company_id does not match route company_id",
+        )
+
+    if not payload.query or not payload.query.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Query is required for answer generation",
+        )
+
+    from app.modules.company_knowledge.services.knowledge_router import (
+        retrieve_company_knowledge,
+    )
+    from app.rag.llm import generate_grounded_answer
+
+    context = retrieve_company_knowledge(db, payload)
+    return generate_grounded_answer(
+        question=payload.query,
+        company_context=context.context_text,
+    )
+

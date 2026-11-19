@@ -236,16 +236,26 @@ Use consistent error envelopes, correlation IDs, and typed input/output schemas 
 Copy-Item .env.example .env
 ```
 
-Fill the documented environment variables locally. Never put real credentials in `.env.example` or Git history.
+Set the API's `DATABASE_URL`, `JWT_SECRET_KEY`, and `REDIS_URL` in `.env`.
+`WORKER_DATABASE_URL` must connect to the same PostgreSQL database from inside a
+Docker container. For PostgreSQL running on Windows itself, use
+`host.docker.internal` as its hostname in `WORKER_DATABASE_URL`; keep
+`localhost` in the API's `DATABASE_URL`. Never commit real credentials.
 
 ### Start infrastructure
 
 ```powershell
-docker compose up -d
+docker compose up -d --build
 docker compose ps
 ```
 
-> These commands work once the corresponding services are defined and configured in `docker-compose.yml`. Check that PostgreSQL, Redis, and other intended containers are present before assuming they are running.
+Compose starts Redis and the Crawl4AI Celery worker. PostgreSQL must already be
+running and reachable through both database URLs.
+After cleaning, classification, and JSON validation, the worker writes one
+`<job_id>.json` artifact before inserting the page and section rows into
+PostgreSQL. Compose stores these artifacts in the persistent `crawl_json_data`
+volume at `/app/data/crawl-json`; when running a worker directly on the host,
+the default directory is `storage/crawl-json/` in the repository.
 
 ### Backend
 
@@ -263,6 +273,16 @@ Run migrations once Alembic models and configuration are ready:
 alembic upgrade head
 ```
 
+Check that the worker has connected to Redis:
+
+```powershell
+docker compose logs --tail=100 crawl-worker
+docker compose exec crawl-worker python -m celery -A app.core.celery_app:celery_app inspect ping
+```
+
+The worker image installs Crawl4AI and its browser during the build. After a
+code change, rebuild it with `docker compose up -d --build crawl-worker`.
+
 ### Frontend
 
 From the repository root, once the Vite app and `frontend/package.json` have been initialized:
@@ -277,7 +297,7 @@ npm run dev
 
 Install and launch Ollama according to its supported local setup, then download the **team-validated** model tag. Confirm the exact model identifier and runtime compatibility before adding it to shared environment configuration.
 
-> **Current state:** The repository includes initial backend files and folders. Not every service, migration, model, or frontend script in this README is necessarily implemented yet. Treat these commands as the target developer workflow and update this section as components become runnable.
+> **Current state:** Company website crawling is implemented as an admin-only Celery job with URL/robots/sitemap validation, Crawl4AI discovery and extraction, classified knowledge sections, and persisted job status. Redis is included in Compose; PostgreSQL must be configured separately. The frontend, RAG search, social OAuth/publishing, and other listed product features remain incomplete.
 
 ## 10. Quality, Security, and Release Rules
 
