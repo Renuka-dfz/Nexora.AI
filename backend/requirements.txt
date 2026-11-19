@@ -53,6 +53,7 @@ beautifulsoup4
 # ==========================================
 # RAG Pipeline
 # ==========================================
+pgvector
 
 # Semantic Chunking & Local Embeddings
 sentence-transformers

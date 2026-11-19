@@ -370,7 +370,8 @@ class FactCompanyIntelligence(Base):
             ondelete="CASCADE",
         ),
         CheckConstraint(
-            "verification_status IN ('pending', 'verified', 'rejected', 'conflicting')",
+            "verification_status IN "
+            "('pending', 'verified', 'approved', 'rejected', 'conflicting')",
             name="ck_fact_intelligence_verification_status",
         ),
         ForeignKeyConstraint(

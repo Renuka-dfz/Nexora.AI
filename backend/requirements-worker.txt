@@ -8,3 +8,5 @@ python-dotenv
 httpx
 crawl4ai
 beautifulsoup4
+pgvector
+sentence-transformers

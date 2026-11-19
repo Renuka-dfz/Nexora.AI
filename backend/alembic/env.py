@@ -24,6 +24,7 @@ import app.modules.company_knowledge.models
 import app.modules.marketing.models
 import app.modules.lead_management.models
 import app.modules.identity.models
+import app.rag.models
 
 
 # Alembic configuration object
