@@ -1,5 +1,8 @@
 
+import os
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -23,7 +26,22 @@ from app.modules.marketing.routes import (
     router as marketing_router,
 )
 
+from app.integrations.instagram.routes import (
+    router as instagram_router,
+)
+
+from app.integrations.cloudflare.routes import (
+    router as cloudflare_router,
+)
+
+from app.integrations.linkedin.routes import (
+    router as linkedin_router,
+)
+
+from app.core.logger import setup_workflow_logging
+
 configure_logging()
+setup_workflow_logging()
 
 
 # =====================================================
@@ -34,6 +52,28 @@ app = FastAPI(
     title="Nexora.AI API",
     version="1.0.0",
 )
+
+# =====================================================
+# CORS CONFIGURATION
+# =====================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Ensure static directories exist for serving generated images to Meta Graph API
+_static_images_dir = os.path.join(os.getcwd(), "static", "generated_images")
+os.makedirs(_static_images_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # =====================================================
@@ -62,6 +102,21 @@ app.include_router(
 
 app.include_router(
     lead_management_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    instagram_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    cloudflare_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    linkedin_router,
     prefix="/api/v1",
 )
 

@@ -1,0 +1,59 @@
+2026-11-20 16:32:04.559 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 16:32:04.562 [INFO] [nexora.workflow]   STARTING TEST VERIFICATION WORKFLOW WORKFLOW
+2026-11-20 16:32:04.565 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 16:32:04.567 [INFO] [nexora.workflow] 🎯 Target: 'Enterprise AI Automation' | Platform: INSTAGRAM | Format: IMAGE | Company: 123e4567-e89b-12d3-a456-426614174000
+2026-11-20 16:32:04.569 [INFO] [nexora.workflow] 🔍 [STAGE 1: REQUEST UNDERSTANDING] Status: IN_PROGRESS
+   ↳ Verified parameters for Instagram Image post
+2026-11-20 16:32:04.571 [INFO] [nexora.workflow] 📚 [RAG KNOWLEDGE RETRIEVAL]
+   • Mode: HYBRID Grounding
+   • Verified Facts Retrieved: 6
+   • Semantic pgvector Chunks: 4
+   • Primary Sources: https://datafactz.ai
+2026-11-20 16:32:04.574 [INFO] [nexora.workflow] ✅ [SAFEGUARDRAILS & AUDIT] Validation PASSED (Zero critical issues)
+   • Grounding Score: 100.0%
+   • Checks Executed: 8
+2026-11-20 16:32:04.575 [INFO] [nexora.workflow] 💾 [STAGE 5: PERSISTENCE] Status: IN_PROGRESS
+   ↳ Saved to dim_content
+2026-11-20 16:32:04.577 [INFO] [nexora.workflow] ✨ [WORKFLOW COMPLETE] TEST VERIFICATION WORKFLOW finished in 17.6ms
+   • Output Content ID: c8f92b1a-0000-0000-0000-000000000000
+   • Final Status: DRAFT_SAVED
+   • Persistent Logs Saved: C:\Users\vtapela\Desktop\Datafactz Projects\Nexora.AI\logs\nexora_workflow.log
+2026-11-20 16:32:04.579 [INFO] [nexora.workflow] ------------------------------------------------------------------------------
+2026-11-20 16:32:04.581 [INFO] [nexora.workflow]   WORKFLOW SUCCEEDED
+2026-11-20 16:32:04.583 [INFO] [nexora.workflow] ------------------------------------------------------------------------------
+2026-11-20 16:48:12.424 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 16:48:12.425 [INFO] [nexora.workflow]   STARTING LIVE TERMINAL TEST WORKFLOW
+2026-11-20 16:48:12.426 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 16:48:12.426 [INFO] [nexora.workflow] 🎯 Target: 'AI Platform' | Platform: LINKEDIN | Format: IMAGE | Company: 123e4567-e89b-12d3-a456-426614174000
+2026-11-20 16:48:12.426 [INFO] [nexora.workflow] 🔍 [STAGE 1: UNDERSTANDING] Status: IN_PROGRESS
+   ↳ Immediate terminal flush test
+2026-11-20 16:48:12.427 [INFO] [nexora.workflow] ✨ [WORKFLOW COMPLETE] LIVE TERMINAL TEST finished in 2.7ms
+   • Output Content ID: c8f92b1a-0000-0000-0000-000000000000
+   • Final Status: DRAFT_SAVED
+   • Persistent Logs Saved: C:\Users\vtapela\Desktop\Datafactz Projects\Nexora.AI\logs\nexora_workflow.log
+2026-11-20 16:48:12.427 [INFO] [nexora.workflow] ------------------------------------------------------------------------------
+2026-11-20 16:48:12.427 [INFO] [nexora.workflow]   WORKFLOW SUCCEEDED
+2026-11-20 16:48:12.427 [INFO] [nexora.workflow] ------------------------------------------------------------------------------
+2026-11-20 19:18:20.011 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 19:18:20.012 [INFO] [nexora.workflow]   STARTING MARKETING AGENT CONTENT STUDIO WORKFLOW
+2026-11-20 19:18:20.012 [INFO] [nexora.workflow] ==============================================================================
+2026-11-20 19:18:20.013 [INFO] [nexora.workflow] 🎯 Target: 'Enterprise AI Multi-Agent Systems for Data Governance' | Platform: INSTAGRAM | Format: IMAGE | Company: 30a9e83f-9928-4fd5-8bac-78a2df8f32f6
+2026-11-20 19:18:20.049 [INFO] [nexora.workflow] 🔍 [STAGE 1: REQUEST INTAKE] Status: IN_PROGRESS
+   ↳ Platform: instagram | Format: image | Tone: authoritative yet accessible
+2026-11-20 19:18:29.439 [INFO] [nexora.workflow] 📚 [RAG KNOWLEDGE RETRIEVAL]
+   • Mode: HYBRID Grounding
+   • Verified Facts Retrieved: 40
+   • Semantic pgvector Chunks: 5
+   • Primary Sources: https://datafactz.ai/agents/incentive-compensation, https://datafactz.ai/careers, https://datafactz.ai/canvas
+2026-11-20 19:21:07.663 [INFO] [nexora.workflow] ⚠️ [SAFEGUARDRAILS & AUDIT] Validation WARNINGS NOTED (1 non-blocking warnings)
+   • Grounding Score: 50.0%
+   • Checks Executed: 8
+2026-11-20 19:21:07.707 [INFO] [nexora.workflow] 💾 [STAGE 5: DATABASE PERSISTENCE] Status: COMPLETED
+   ↳ Persisted draft 7ec9b448-7d29-411d-bac1-b614bff2ba09 to dim_content (approval_status=draft)
+2026-11-20 19:21:07.717 [INFO] [nexora.workflow] ✨ [WORKFLOW COMPLETE] MARKETING AGENT CONTENT STUDIO finished in 167,736.2ms
+   • Output Content ID: 7ec9b448-7d29-411d-bac1-b614bff2ba09
+   • Final Status: DRAFT_SAVED
+   • Persistent Logs Saved: C:\Users\vtapela\Desktop\Datafactz Projects\Nexora.AI\logs\nexora_workflow.log
+2026-11-20 19:21:07.718 [INFO] [nexora.workflow] ------------------------------------------------------------------------------
+2026-11-20 19:21:07.718 [INFO] [nexora.workflow]   WORKFLOW SUCCEEDED
+2026-11-20 19:21:07.719 [INFO] [nexora.workflow] ------------------------------------------------------------------------------

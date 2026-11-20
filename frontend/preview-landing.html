@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexora.AI — Turn Your Engineering Work Into Grounded B2B Content</title>
+  <meta name="description" content="Nexora crawls your company website to generate verified, company grounded LinkedIn content and articles. Free to try with zero risk and mandatory human approval.">
+  
+  <!-- Geist Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+            mono: ['Geist Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              bg: '#FAFAF8',
+              text: '#171B1A',
+              accent: '#256D58',
+              accentHover: '#1E5746',
+              muted: '#66716B',
+              dark: '#14211C',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- JSON-LD FAQ Schema for AEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Will Nexora generate generic or inaccurate content about my business?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Nexora retrieves facts directly from your verified website pages, past projects, and technical case studies using hybrid search. If an answer is not in your data, our agent states that evidence is missing rather than inventing facts."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can Nexora publish to my LinkedIn profile without my permission?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Never. Human review is an absolute architectural requirement. Every piece of content enters your Content Studio as a pending draft. Nothing moves to publishing until an authorized team member explicitly reviews and clicks approve."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Geist', sans-serif;
+      background-color: #FAFAF8;
+      color: #171B1A;
+    }
+    .text-balance {
+      text-wrap: balance;
+    }
+    .text-pretty {
+      text-wrap: pretty;
+    }
+    .hero-gradient {
+      background: linear-gradient(90deg, #000000 0%, #666666 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .word-reveal {
+      transition: color 500ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-[#256D58]/15 selection:text-[#256D58]">
+
+  <!-- Skip to content -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 z-50 px-4 py-2 bg-[#256D58] text-white rounded-md text-sm font-semibold">
+    Skip to main content
+  </a>
+
+  <!-- Floating Nav Bar -->
+  <header class="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+    <nav class="pointer-events-auto w-full max-w-5xl bg-[#FAFAF8]/90 backdrop-blur-md border border-[#171B1A]/10 rounded-full px-4 py-2 flex items-center justify-between shadow-sm" aria-label="Main navigation">
+      
+      <!-- Brand -->
+      <a href="#" class="flex items-center gap-2 pl-2 group">
+        <div class="w-8 h-8 rounded-lg bg-[#256D58] flex items-center justify-center text-white font-semibold text-sm shadow-sm group-hover:scale-105 transition-transform duration-200">
+          <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
+        </div>
+        <span class="text-[#171B1A] font-semibold text-lg tracking-tight">
+          Nexora<span class="text-[#256D58]">.AI</span>
+        </span>
+      </a>
+
+      <!-- Desktop Links -->
+      <div class="hidden md:flex items-center gap-6">
+        <a href="#how-it-works" class="text-sm font-medium text-[#66716B] hover:text-[#171B1A] transition-colors">How it works</a>
+        <a href="#comparison" class="text-sm font-medium text-[#66716B] hover:text-[#171B1A] transition-colors">Comparison</a>
+        <a href="#benefits" class="text-sm font-medium text-[#66716B] hover:text-[#171B1A] transition-colors">Benefits</a>
+        <a href="#governance" class="text-sm font-medium text-[#66716B] hover:text-[#171B1A] transition-colors">Governance</a>
+        <a href="#faq" class="text-sm font-medium text-[#66716B] hover:text-[#171B1A] transition-colors">FAQ</a>
+      </div>
+
+      <!-- Action -->
+      <div class="hidden md:flex items-center gap-3">
+        <a href="#hero-form" class="inline-flex items-center gap-2 bg-[#256D58] hover:bg-[#1E5746] text-white text-sm font-semibold px-4 py-2 rounded-full transition-all duration-200 shadow-sm active:scale-[0.98]">
+          <span>Get started</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <div class="flex md:hidden">
+        <button id="mobile-menu-btn" class="p-2 text-[#171B1A] hover:text-[#256D58] transition-colors" aria-label="Toggle menu">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Panel -->
+    <div id="mobile-menu-panel" class="hidden pointer-events-auto fixed inset-0 top-20 bg-[#FAFAF8]/95 backdrop-blur-xl z-40 p-6 flex flex-col justify-between border-t border-[#171B1A]/10 md:hidden">
+      <div class="flex flex-col gap-4 pt-4">
+        <a href="#how-it-works" class="mobile-nav-link text-xl font-medium text-[#171B1A] py-2 border-b border-[#171B1A]/5">How it works</a>
+        <a href="#comparison" class="mobile-nav-link text-xl font-medium text-[#171B1A] py-2 border-b border-[#171B1A]/5">Comparison</a>
+        <a href="#benefits" class="mobile-nav-link text-xl font-medium text-[#171B1A] py-2 border-b border-[#171B1A]/5">Benefits</a>
+        <a href="#governance" class="mobile-nav-link text-xl font-medium text-[#171B1A] py-2 border-b border-[#171B1A]/5">Governance</a>
+        <a href="#faq" class="mobile-nav-link text-xl font-medium text-[#171B1A] py-2 border-b border-[#171B1A]/5">FAQ</a>
+      </div>
+      <div class="pt-6 pb-8">
+        <a href="#hero-form" class="w-full flex items-center justify-center gap-2 bg-[#256D58] text-white font-semibold py-3 rounded-full text-base shadow-sm">
+          <span>Get started free</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <p class="text-xs text-center text-[#66716B] mt-3 flex items-center justify-center gap-1">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#256D58]"></i>
+          No credit card required
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden bg-[#FAFAF8]">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        
+        <!-- Pill -->
+        <div class="flex justify-center mb-6">
+          <div class="inline-flex items-center gap-2 bg-[#256D58]/10 border border-[#256D58]/20 rounded-full px-3.5 py-1 text-xs font-medium text-[#256D58]">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+            <span>Company grounded AI marketing for B2B technology leaders</span>
+          </div>
+        </div>
+
+        <!-- Headline & Copy -->
+        <div class="text-center flex flex-col items-center">
+          <h1 class="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.08] max-w-[680px] text-balance">
+            <span class="hero-gradient">
+              Turn your real engineering work into high authority content that wins clients
+            </span>
+          </h1>
+
+          <p className="mt-6 text-base sm:text-lg text-[#66716B] max-w-[680px] text-pretty leading-relaxed">
+            Nexora crawls your company website to build a verified knowledge base. Generate accurate LinkedIn articles and posts grounded in your actual services, projects, and tech stack.
+          </p>
+
+          <!-- Interactive URL Intake Form -->
+          <form id="hero-form" onsubmit="event.preventDefault(); alert('Crawl initiated for: ' + document.getElementById('company-url-input').value + '\n\nNexora.AI will index this website and build your private company knowledge base.');" class="mt-8 w-full max-w-md flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-white border border-[#171B1A]/15 rounded-2xl sm:rounded-full shadow-sm hover:border-[#256D58]/40 focus-within:border-[#256D58] focus-within:ring-2 focus-within:ring-[#256D58]/10 transition-all duration-200">
+            <div class="flex items-center gap-2 pl-3.5 w-full">
+              <i data-lucide="globe" class="w-4 h-4 text-[#66716B] shrink-0"></i>
+              <input
+                id="company-url-input"
+                type="text"
+                placeholder="Enter your company website URL"
+                value="https://datafactz.ai"
+                class="w-full bg-transparent text-sm text-[#171B1A] placeholder-[#66716B]/70 focus:outline-none py-2"
+                required
+              >
+            </div>
+            <button
+              type="submit"
+              class="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 bg-[#256D58] hover:bg-[#1E5746] text-white text-sm font-semibold px-5 py-2.5 rounded-xl sm:rounded-full transition-all duration-200 shadow-sm active:scale-[0.98]"
+            >
+              <span>Get started</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </form>
+
+          <!-- Trust Guarantees -->
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-[#66716B]">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#256D58]"></i>
+              <span>Free to try</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#256D58]"></i>
+              <span>No credit card required</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="lock" class="w-3.5 h-3.5 text-[#256D58]"></i>
+              <span>Human approval on every post</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Central Showcase: Content Studio Mockup -->
+        <div class="mt-14 relative">
+          <div class="rounded-2xl border border-[#171B1A]/10 bg-white shadow-xl overflow-hidden">
+            
+            <!-- Window Header -->
+            <div class="bg-[#FAFAF8] border-b border-[#171B1A]/10 px-4 py-3 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-[#171B1A]/15"></div>
+                <div class="w-3 h-3 rounded-full bg-[#171B1A]/15"></div>
+                <div class="w-3 h-3 rounded-full bg-[#171B1A]/15"></div>
+                <span class="ml-2 text-xs font-medium text-[#66716B]">
+                  Nexora.AI Content Studio — Verified Knowledge Extraction
+                </span>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-[#256D58] font-medium bg-[#256D58]/10 px-2.5 py-1 rounded-md">
+                <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                <span>Source: datafactz.ai (42 verified facts)</span>
+              </div>
+            </div>
+
+            <!-- Workspace Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 min-h-[460px]">
+              
+              <!-- Left Column: Verified Knowledge Base -->
+              <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-[#171B1A]/10 p-5 bg-[#FAFAF8]/50 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between pb-3 border-b border-[#171B1A]/10 mb-3">
+                    <span class="text-xs font-semibold text-[#171B1A] uppercase tracking-wider">
+                      Authoritative Company Facts
+                    </span>
+                    <span class="text-[11px] text-[#256D58] font-medium">PostgreSQL + RAG</span>
+                  </div>
+
+                  <div class="space-y-2.5">
+                    <div class="p-2.5 rounded-lg bg-white border border-[#171B1A]/10 text-xs shadow-xs">
+                      <div class="flex items-center justify-between text-[#256D58] font-medium mb-1">
+                        <span>Partner Data Intake Agent</span>
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#256D58]"></i>
+                      </div>
+                      <p class="text-[#66716B] line-clamp-2">
+                        Automates insurance bordereaux ingestion, canonical data mapping, and partner audit trails.
+                      </p>
+                    </div>
+
+                    <div class="p-2.5 rounded-lg bg-white border border-[#171B1A]/10 text-xs shadow-xs">
+                      <div class="flex items-center justify-between text-[#256D58] font-medium mb-1">
+                        <span>Site Intelligence Agent</span>
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#256D58]"></i>
+                      </div>
+                      <p class="text-[#66716B] line-clamp-2">
+                        Pulls 100 years of aerial photos and historical maps for environmental desk reports.
+                      </p>
+                    </div>
+
+                    <div class="p-2.5 rounded-lg bg-white border border-[#171B1A]/10 text-xs shadow-xs">
+                      <div class="flex items-center justify-between text-[#256D58] font-medium mb-1">
+                        <span>Architecture Contract</span>
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#256D58]"></i>
+                      </div>
+                      <p class="text-[#66716B] line-clamp-2">
+                        Every agent built on declared schema contracts and registered centrally to prevent code silos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pt-4 border-t border-[#171B1A]/10 text-xs text-[#66716B] flex items-center justify-between">
+                  <span>Fact currency: Current</span>
+                  <span class="text-[#256D58] font-medium">100% Grounded</span>
+                </div>
+              </div>
+
+              <!-- Right Column: Grounded Draft Preview -->
+              <div class="lg:col-span-8 p-6 flex flex-col justify-between bg-white">
+                <div>
+                  <div class="flex items-center justify-between pb-4 border-b border-[#171B1A]/10 mb-4">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      <span class="text-xs font-semibold text-[#171B1A]">
+                        Approval Status: Pending human review
+                      </span>
+                    </div>
+                    <span class="text-xs text-[#66716B]">Target: LinkedIn Article</span>
+                  </div>
+
+                  <div class="space-y-3">
+                    <h3 class="text-lg font-semibold text-[#171B1A] leading-snug">
+                      From Fragile Pilots to Production: How Enterprise Teams Build Agents on Contracts
+                    </h3>
+                    
+                    <p class="text-sm text-[#171B1A]/90 leading-relaxed">
+                      Most enterprise AI initiatives stall because teams write one off conversational scripts with no schema validation or permission boundaries.
+                    </p>
+
+                    <p class="text-sm text-[#171B1A]/90 leading-relaxed">
+                      In production, reliability requires contracts. When deploying our Partner Data Intake Agent for insurance bordereaux and Site Intelligence Agent for historic environmental mapping, every input and output is governed by an explicit schema contract.
+                    </p>
+
+                    <p class="text-sm text-[#171B1A]/90 leading-relaxed">
+                      Crucially, consequential actions require human verification before data updates take effect. That is how enterprise teams move from endless prototypes to real operational impact.
+                    </p>
+
+                    <div class="mt-3 p-3 rounded-lg bg-[#FAFAF8] border border-[#171B1A]/10 text-xs space-y-1">
+                      <span class="font-semibold text-[#171B1A] block">Verified Evidence Citations:</span>
+                      <div class="flex flex-wrap gap-2 pt-1 text-[#256D58]">
+                        <span class="inline-flex items-center gap-1 hover:underline">
+                          datafactz.ai/agents <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </span>
+                        <span>•</span>
+                        <span class="inline-flex items-center gap-1 hover:underline">
+                          datafactz.ai/agents/partner-data-intake <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </span>
+                        <span>•</span>
+                        <span class="inline-flex items-center gap-1 hover:underline">
+                          datafactz.ai/agents/site-intelligence <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="mt-6 pt-4 border-t border-[#171B1A]/10 flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-2 text-xs text-[#66716B]">
+                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    <span>Generated in 1.4 seconds from verified company facts</span>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button class="px-3.5 py-1.5 text-xs font-semibold text-[#171B1A] bg-[#FAFAF8] hover:bg-[#171B1A]/5 border border-[#171B1A]/15 rounded-lg transition-colors">
+                      Edit text
+                    </button>
+                    <button class="px-4 py-1.5 text-xs font-semibold text-white bg-[#256D58] hover:bg-[#1E5746] rounded-lg transition-all shadow-xs flex items-center gap-1.5">
+                      <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                      <span>Approve and publish</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section id="comparison" class="py-20 md:py-28 bg-[#FAFAF8] border-t border-[#171B1A]/10">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] uppercase tracking-wider mb-3">
+            <span>The Grounding Difference</span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-semibold text-[#171B1A] tracking-tight text-balance">
+            Stop publishing generic AI boilerplate that damages your brand credibility
+          </h2>
+          <p class="mt-4 text-base text-[#66716B] text-pretty">
+            B2B buyers and enterprise decision makers can spot ungrounded AI text instantly. See how Nexora turns your real engineering into authentic authority.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+          
+          <!-- Problem Card -->
+          <div class="rounded-2xl border border-red-200/80 bg-white p-6 sm:p-8 flex flex-col justify-between shadow-xs">
+            <div>
+              <div class="flex items-center justify-between pb-4 border-b border-red-100 mb-6">
+                <div class="flex items-center gap-2 text-red-600 font-semibold text-sm">
+                  <i data-lucide="x-circle" class="w-4 h-4"></i>
+                  <span>Generic AI tools (ChatGPT, standard prompts)</span>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-md bg-red-50 text-red-700 font-medium border border-red-200/50">
+                  Hallucination risk
+                </span>
+              </div>
+
+              <div class="p-4 rounded-xl bg-red-50/40 border border-red-100 font-mono text-xs text-[#171B1A]/85 space-y-3 leading-relaxed">
+                <p class="text-red-900/90 italic font-sans font-medium text-sm">
+                  "In today's fast paced world, AI is revolutionizing everything! At Acme Tech, we supercharge your enterprise workflows with cutting edge digital transformation."
+                </p>
+                <div class="pt-2 text-[11px] text-red-700 space-y-1">
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Fabricates fake metrics ("guaranteed 99% savings")</span>
+                  </p>
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Mentions services you do not even offer</span>
+                  </p>
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Zero citations or audit trail for claims</span>
+                  </p>
+                </div>
+              </div>
+
+              <ul class="mt-6 space-y-3 text-xs sm:text-sm text-[#66716B]">
+                <li class="flex items-start gap-2">
+                  <i data-lucide="x-circle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+                  <span>Relies on public internet training data instead of your real company records</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <i data-lucide="x-circle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+                  <span>Sounds like every competitor in your space using the same prompt template</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <i data-lucide="x-circle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+                  <span>Forces marketing to constantly edit and remove factual errors</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-red-100 text-xs text-red-600 font-medium">
+              Result: Generic spam that repels serious B2B buyers
+            </div>
+          </div>
+
+          <!-- Solution Card -->
+          <div class="rounded-2xl border-2 border-[#256D58]/40 bg-white p-6 sm:p-8 flex flex-col justify-between shadow-sm relative">
+            <div class="absolute -top-3 right-6 bg-[#256D58] text-white text-[11px] font-semibold px-3 py-0.5 rounded-full shadow-xs">
+              Verified grounding
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between pb-4 border-b border-[#171B1A]/10 mb-6">
+                <div class="flex items-center gap-2 text-[#256D58] font-semibold text-sm">
+                  <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                  <span>Nexora.AI (Company Knowledge + RAG)</span>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-md bg-[#256D58]/10 text-[#256D58] font-medium border border-[#256D58]/20">
+                  100% Verified facts
+                </span>
+              </div>
+
+              <div class="p-4 rounded-xl bg-[#FAFAF8] border border-[#171B1A]/10 text-xs text-[#171B1A] space-y-2.5 leading-relaxed">
+                <p class="font-medium text-sm text-[#171B1A]">
+                  "When automating insurance bordereaux, custom scripts break the moment partner schemas change. Our Partner Data Intake Agent standardizes incoming spreadsheets into a single canonical model."
+                </p>
+                <div class="pt-2 text-[11px] text-[#256D58] font-medium space-y-1">
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Cites exact company source: datafactz.ai/agents/partner-data-intake</span>
+                  </p>
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Names real architectural capabilities and delivery methodology</span>
+                  </p>
+                  <p class="flex items-center gap-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span>Pending draft requires team sign off before publishing</span>
+                  </p>
+                </div>
+              </div>
+
+              <ul class="mt-6 space-y-3 text-xs sm:text-sm text-[#171B1A]">
+                <li class="flex items-start gap-2">
+                  <i data-lucide="check-circle-2" class="w-4 h-4 text-[#256D58] shrink-0 mt-0.5"></i>
+                  <span>Cites verified company knowledge from your crawled website and case studies</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <i data-lucide="check-circle-2" class="w-4 h-4 text-[#256D58] shrink-0 mt-0.5"></i>
+                  <span>Preserves practitioner tone with specific architectural insight</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <i data-lucide="check-circle-2" class="w-4 h-4 text-[#256D58] shrink-0 mt-0.5"></i>
+                  <span>Empowers marketing to publish with total confidence</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-[#171B1A]/10 text-xs text-[#256D58] font-semibold flex items-center justify-between">
+              <span>Result: High authority thought leadership that earns inbound pipeline</span>
+              <span class="text-[11px] font-normal text-[#66716B]">PostgreSQL isolated</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Core Benefits Section -->
+    <section id="benefits" class="py-20 md:py-28 bg-[#FAFAF8]">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] uppercase tracking-wider mb-3">
+            <span>Core Business Outcomes</span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-semibold text-[#171B1A] tracking-tight text-balance">
+            Built for B2B technology teams that value credibility over volume
+          </h2>
+          <p class="mt-4 text-base text-[#66716B] text-pretty">
+            Transform technical depth into a consistent commercial advantage without sacrificing accuracy.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 hover:border-[#256D58]/40 transition-all duration-300 shadow-xs flex flex-col justify-between group">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200">
+                <i data-lucide="shield-alert" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Eliminate generic AI fluff</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Every paragraph is grounded in your verified website data and technical case studies, protecting your brand reputation from fabricated statistics or imaginary claims.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 flex items-center gap-2 text-xs font-medium text-[#256D58]">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>Zero hallucinations</span>
+            </div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 hover:border-[#256D58]/40 transition-all duration-300 shadow-xs flex flex-col justify-between group">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200">
+                <i data-lucide="users" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Bridge the engineering gap</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Marketing teams no longer need to chase software architects or senior consultants for technical details. Nexora indexes your actual delivery record and turns it into compelling thought leadership.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 flex items-center gap-2 text-xs font-medium text-[#256D58]">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>No engineer interview bottlenecks</span>
+            </div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 hover:border-[#256D58]/40 transition-all duration-300 shadow-xs flex flex-col justify-between group">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200">
+                <i data-lucide="sliders" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Maintain absolute publishing control</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Nothing ever posts automatically. Your team reviews, edits, and approves every word in the Content Studio before anything reaches your social channels.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 flex items-center gap-2 text-xs font-medium text-[#256D58]">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>Mandatory human approval</span>
+            </div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 hover:border-[#256D58]/40 transition-all duration-300 shadow-xs flex flex-col justify-between group">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200">
+                <i data-lucide="zap" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Reclaim hours of research time</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Skip the blank page. Move from a company URL to an authoritative, cited LinkedIn post ready for review in under two minutes.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 flex items-center gap-2 text-xs font-medium text-[#256D58]">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>Two minute turnaround</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Tagline Reveal Section (B11) -->
+    <section class="py-24 md:py-36 bg-[#14211C] text-white">
+      <div id="tagline-container" class="max-w-4xl mx-auto px-4 sm:px-6 text-center flex flex-col items-center">
+        <span class="text-xs uppercase font-semibold text-[#256D58] tracking-widest mb-6 block">
+          The Nexora Operating Principle
+        </span>
+
+        <h2 id="tagline-heading" class="text-2xl sm:text-3xl md:text-5xl font-semibold leading-tight sm:leading-tight max-w-[680px] text-balance">
+          <!-- Words inserted dynamically by JavaScript -->
+        </h2>
+
+        <p class="mt-8 text-sm sm:text-base text-white/60 max-w-[540px] text-pretty">
+          Built on deterministic PostgreSQL facts and pgvector semantic retrieval. Zero hallucinated metrics, zero surprise posts.
+        </p>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-20 md:py-28 bg-[#FAFAF8] border-t border-[#171B1A]/10">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] uppercase tracking-wider mb-3">
+            <span>Simple Three Step Workflow</span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-semibold text-[#171B1A] tracking-tight text-balance">
+            From company website to verified marketing in under two minutes
+          </h2>
+          <p class="mt-4 text-base text-[#66716B] text-pretty">
+            No complex engineering pipelines or prompt engineering courses required.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between group hover:border-[#256D58]/40 transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-6">
+                <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center">
+                  <i data-lucide="globe" class="w-5 h-5 text-[#256D58]"></i>
+                </div>
+                <span class="text-2xl font-semibold font-mono text-[#171B1A]/20">01</span>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Index your company knowledge</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Enter your company website domain. Nexora crawls authorized pages and organizes your services, technology stack, client projects, and case studies into an isolated database.
+              </p>
+            </div>
+            <div class="mt-8 pt-4 border-t border-[#171B1A]/5 text-xs font-medium text-[#256D58] flex items-center gap-1.5">
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <span>Continuous currency with automated updates</span>
+            </div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between group hover:border-[#256D58]/40 transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-6">
+                <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center">
+                  <i data-lucide="cpu" class="w-5 h-5 text-[#256D58]"></i>
+                </div>
+                <span class="text-2xl font-semibold font-mono text-[#171B1A]/20">02</span>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Generate grounded content</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Choose a topic or business goal. Our marketing agent queries your verified facts to write in depth LinkedIn posts and articles with complete source attribution.
+              </p>
+            </div>
+            <div class="mt-8 pt-4 border-t border-[#171B1A]/5 text-xs font-medium text-[#256D58] flex items-center gap-1.5">
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <span>Every claim cited back to your website</span>
+            </div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between group hover:border-[#256D58]/40 transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-6">
+                <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center">
+                  <i data-lucide="check-check" class="w-5 h-5 text-[#256D58]"></i>
+                </div>
+                <span class="text-2xl font-semibold font-mono text-[#171B1A]/20">03</span>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Review, refine, and approve</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Inspect the draft in the Content Studio. Verify cited claims, adjust the tone to match your voice, click approve, and publish directly to your audience.
+              </p>
+            </div>
+            <div class="mt-8 pt-4 border-t border-[#171B1A]/5 text-xs font-medium text-[#256D58] flex items-center gap-1.5">
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <span>Mandatory human approval on every post</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Governance Section -->
+    <section id="governance" class="py-20 md:py-28 bg-[#FAFAF8] border-t border-[#171B1A]/10">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] uppercase tracking-wider mb-3">
+            <span>Publishing Control and Security</span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-semibold text-[#171B1A] tracking-tight text-balance">
+            You stay in control. Nothing gets published without your direct approval.
+          </h2>
+          <p class="mt-4 text-base text-[#66716B] text-pretty">
+            We engineered Nexora for enterprise teams where brand reputation and technical precision are paramount.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6">
+                <i data-lucide="user-check" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Human in the loop approval</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Every AI draft enters the Content Studio with status pending. No post can ever be scheduled or published to LinkedIn without an explicit sign off by an authorized team member.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 text-xs text-[#256D58] font-medium">Enforced by default</div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6">
+                <i data-lucide="lock" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Strict company data isolation</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Your crawled website information and drafts live in private, company scoped database partitions. Your intelligence is never mixed with other companies or sold to data brokers.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 text-xs text-[#256D58] font-medium">Enforced by default</div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6">
+                <i data-lucide="shield-check" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Fail closed claim verification</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Our retrieval pipeline requires explicit factual evidence before generating marketing claims. If a capability is not verified in your source data, our agent states that evidence is missing.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 text-xs text-[#256D58] font-medium">Enforced by default</div>
+          </div>
+
+          <div class="p-8 rounded-2xl bg-white border border-[#171B1A]/10 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-[#256D58]/10 flex items-center justify-center mb-6">
+                <i data-lucide="eye" class="w-5 h-5 text-[#256D58]"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-[#171B1A] tracking-tight mb-3">Auditable citation trails</h3>
+              <p class="text-sm text-[#66716B] leading-relaxed">
+                Every factual claim in a draft includes direct URLs to the supporting source page, so your reviewers can verify technical claims in seconds before approving.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#171B1A]/5 text-xs text-[#256D58] font-medium">Enforced by default</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-20 md:py-28 bg-[#FAFAF8] border-t border-[#171B1A]/10">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] uppercase tracking-wider mb-3">
+            <span>Frequently Asked Questions</span>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-semibold text-[#171B1A] tracking-tight text-balance">
+            Everything you need to know about Nexora and content grounding
+          </h2>
+          <p class="mt-4 text-base text-[#66716B] text-pretty">
+            Clear answers on data privacy, publishing control, and our retrieval architecture.
+          </p>
+        </div>
+
+        <div class="space-y-3" id="faq-accordion">
+          <!-- Accordion items rendered by JS -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="py-20 md:py-28 bg-[#14211C] text-white relative overflow-hidden">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center flex flex-col items-center">
+        
+        <span class="text-xs uppercase font-semibold text-[#256D58] tracking-widest mb-4">
+          Ready to experience grounded content?
+        </span>
+
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight max-w-[680px] text-balance leading-tight">
+          Turn your company website into inbound client interest today
+        </h2>
+
+        <p class="mt-5 text-base sm:text-lg text-white/70 max-w-[600px] text-pretty">
+          Enter your website address to index your real capabilities and generate your first AI powered post with full source citations.
+        </p>
+
+        <form onsubmit="event.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); document.getElementById('company-url-input').focus();" class="mt-8 w-full max-w-md flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-white border border-white/20 rounded-2xl sm:rounded-full shadow-lg">
+          <div class="flex items-center gap-2 pl-3.5 w-full">
+            <i data-lucide="globe" class="w-4 h-4 text-[#66716B] shrink-0"></i>
+            <input
+              type="text"
+              placeholder="Enter your company website URL"
+              class="w-full bg-transparent text-sm text-[#171B1A] placeholder-[#66716B]/70 focus:outline-none py-2"
+              required
+            >
+          </div>
+          <button
+            type="submit"
+            class="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 bg-[#256D58] hover:bg-[#1E5746] text-white text-sm font-semibold px-5 py-2.5 rounded-xl sm:rounded-full transition-all duration-200 shadow-sm active:scale-[0.98]"
+          >
+            <span>Get started</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-white/60">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#256D58]"></i>
+            <span>Free to try</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#256D58]"></i>
+            <span>No credit card required</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="lock" class="w-3.5 h-3.5 text-[#256D58]"></i>
+            <span>Nothing published without approval</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-[#FAFAF8] border-t border-[#171B1A]/10 py-12 text-[#66716B] text-xs">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-[#171B1A]/5">
+        
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-md bg-[#256D58] flex items-center justify-center text-white text-xs">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-white"></i>
+          </div>
+          <span class="text-[#171B1A] font-semibold text-sm tracking-tight">
+            Nexora<span class="text-[#256D58]">.AI</span>
+          </span>
+          <span class="text-[#66716B]/60 text-xs ml-2">
+            Company grounded marketing for B2B technology teams
+          </span>
+        </div>
+
+        <nav class="flex flex-wrap items-center gap-6" aria-label="Footer navigation">
+          <a href="#how-it-works" class="hover:text-[#171B1A] transition-colors">How it works</a>
+          <a href="#comparison" class="hover:text-[#171B1A] transition-colors">Comparison</a>
+          <a href="#benefits" class="hover:text-[#171B1A] transition-colors">Benefits</a>
+          <a href="#governance" class="hover:text-[#171B1A] transition-colors">Governance</a>
+          <a href="#faq" class="hover:text-[#171B1A] transition-colors">FAQ</a>
+        </nav>
+      </div>
+
+      <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[#66716B]/80">
+        <p>© 2026 Nexora.AI. All rights reserved.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="hover:text-[#171B1A] transition-colors">Privacy policy</a>
+          <span>•</span>
+          <a href="#" class="hover:text-[#171B1A] transition-colors">Terms of service</a>
+          <span>•</span>
+          <a href="#" class="hover:text-[#171B1A] transition-colors">Security notice</a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- Script for interactions, tagline reveal, FAQ accordion -->
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Mobile menu toggle
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobilePanel = document.getElementById('mobile-menu-panel');
+    let isMenuOpen = false;
+
+    mobileBtn.addEventListener('click', () => {
+      isMenuOpen = !isMenuOpen;
+      if (isMenuOpen) {
+        mobilePanel.classList.remove('hidden');
+      } else {
+        mobilePanel.classList.add('hidden');
+      }
+    });
+
+    document.querySelectorAll('.mobile-nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        isMenuOpen = false;
+        mobilePanel.classList.add('hidden');
+      });
+    });
+
+    // Tagline Reveal logic (Rule B11)
+    const taglineWords = [
+      'Anyone', 'can', 'prompt', 'an', 'AI', 'to', 'generate', 'generic', 'claims.',
+      'We', 'ground', 'every', 'word', 'in', 'what', 'your', 'company', 'has', 'actually', 'engineered', 'and', 'delivered.'
+    ];
+    const taglineHeading = document.getElementById('tagline-heading');
+    taglineWords.forEach((word, idx) => {
+      const span = document.createElement('span');
+      span.textContent = word;
+      span.id = `reveal-word-${idx}`;
+      span.className = 'word-reveal inline-block mr-2 sm:mr-3';
+      span.style.color = 'rgba(255, 255, 255, 0.28)';
+      taglineHeading.appendChild(span);
+    });
+
+    const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (isReducedMotion) {
+      taglineWords.forEach((_, idx) => {
+        document.getElementById(`reveal-word-${idx}`).style.color = '#FFFFFF';
+      });
+    } else {
+      const container = document.getElementById('tagline-container');
+      const handleTaglineScroll = () => {
+        const rect = container.getBoundingClientRect();
+        const start = window.innerHeight * 0.85;
+        const end = window.innerHeight * 0.25;
+
+        if (rect.top <= start && rect.bottom >= end) {
+          const progress = Math.min(1, Math.max(0, (start - rect.top) / (start - end)));
+          const activeCount = Math.floor(progress * taglineWords.length);
+          taglineWords.forEach((_, idx) => {
+            const el = document.getElementById(`reveal-word-${idx}`);
+            if (idx <= activeCount) {
+              el.style.color = '#FFFFFF';
+            } else {
+              el.style.color = 'rgba(255, 255, 255, 0.28)';
+            }
+          });
+        }
+      };
+
+      let rafId;
+      window.addEventListener('scroll', () => {
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(handleTaglineScroll);
+      }, { passive: true });
+      handleTaglineScroll();
+    }
+
+    // FAQ Accordion items
+    const faqs = [
+      {
+        q: "Will Nexora generate generic or inaccurate content about my business?",
+        a: "No. Standard AI tools guess because they lack company context. Nexora retrieves facts directly from your verified website pages, past projects, and technical case studies using hybrid search. If an answer is not in your data, our agent states that evidence is missing rather than inventing facts."
+      },
+      {
+        q: "Can Nexora publish to my LinkedIn profile without my permission?",
+        a: "Never. Human review is an absolute architectural requirement. Every piece of content enters your Content Studio as a pending draft. Nothing moves to publishing until an authorized team member explicitly reviews and clicks approve."
+      },
+      {
+        q: "How long does setup take?",
+        a: "Setup takes less than two minutes. You enter your website address, and our system extracts your core business information automatically. There are no complex software integrations or engineering pipelines required."
+      },
+      {
+        q: "What kind of content can I create?",
+        a: "You can generate long form thought leadership articles, short conversational LinkedIn posts, technical capability spotlights, and project case study summaries tailored for executive audiences."
+      },
+      {
+        q: "How does Nexora handle my company data?",
+        a: "Your data is stored with strict company isolation. Your extracted website knowledge and generated drafts are private to your workspace and are never shared or used to train third party public models."
+      },
+      {
+        q: "Do I need to connect my social media accounts right away?",
+        a: "No. You can index your website, generate posts, and test draft quality immediately. You only need to connect your LinkedIn profile when you are ready to publish directly from the platform."
+      },
+      {
+        q: "How does this differ from ChatGPT or standard writing assistants?",
+        a: "General writing assistants rely on generic training data and produce recognizable boilerplate. Nexora combines structured database storage, semantic vector retrieval, and automated claim verification to generate posts that accurately reflect your real technical work."
+      },
+      {
+        q: "Is there a free trial?",
+        a: "Yes. You can get started for free, crawl your website, and generate your first AI powered post without providing credit card details."
+      }
+    ];
+
+    const accordion = document.getElementById('faq-accordion');
+    faqs.forEach((faq, idx) => {
+      const item = document.createElement('div');
+      item.className = "rounded-xl border border-[#171B1A]/10 bg-white overflow-hidden transition-colors";
+      
+      const isOpenInitial = idx === 0;
+      
+      item.innerHTML = `
+        <button type="button" class="faq-btn w-full py-5 px-6 flex items-center justify-between text-left gap-4 hover:bg-[#FAFAF8]/50 transition-colors" data-index="${idx}">
+          <span class="text-base font-semibold text-[#171B1A]">${faq.q}</span>
+          <i data-lucide="chevron-down" id="faq-chevron-${idx}" class="w-5 h-5 text-[#66716B] shrink-0 transition-transform duration-300 ${isOpenInitial ? 'rotate-180 text-[#256D58]' : ''}"></i>
+        </button>
+        <div id="faq-answer-${idx}" class="${isOpenInitial ? '' : 'hidden'} px-6 pb-5 pt-1 text-sm text-[#66716B] leading-relaxed border-t border-[#171B1A]/5">
+          <p>${faq.a}</p>
+        </div>
+      `;
+      accordion.appendChild(item);
+    });
+
+    lucide.createIcons();
+
+    // Toggle FAQ
+    document.querySelectorAll('.faq-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.getAttribute('data-index');
+        const ans = document.getElementById(`faq-answer-${idx}`);
+        const chevron = document.getElementById(`faq-chevron-${idx}`);
+        
+        const isCurrentlyOpen = !ans.classList.contains('hidden');
+        if (isCurrentlyOpen) {
+          ans.classList.add('hidden');
+          chevron.classList.remove('rotate-180', 'text-[#256D58]');
+        } else {
+          ans.classList.remove('hidden');
+          chevron.classList.add('rotate-180', 'text-[#256D58]');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

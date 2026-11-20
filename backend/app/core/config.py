@@ -30,11 +30,24 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_ID: str = ""
     LINKEDIN_CLIENT_SECRET: str = ""
     LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/linkedin/callback"
+    LINKEDIN_ACCESS_TOKEN: str = ""
+    LINKEDIN_ORGANIZATION_URN: str = ""
 
     # Social Integrations - Instagram Graph API (Meta)
     INSTAGRAM_CLIENT_ID: str = ""
     INSTAGRAM_CLIENT_SECRET: str = ""
     INSTAGRAM_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/instagram/callback"
+    IG_ACCESS_TOKEN: str = ""
+    IG_USER_ID: str = ""
+
+    # Cloudflare Workers AI - Image Generation (Flux-1-schnell)
+    CLOUDFLARE_ACCOUNT_ID: str = ""
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_IMAGE_MODEL: str = "@cf/black-forest-labs/flux-1-schnell"
+
+    # Public Application URL (used for serving public static assets to Meta / webhooks)
+    # Set to your Cloudflare Tunnel or ngrok HTTPS domain when publishing to Instagram
+    PUBLIC_APP_URL: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

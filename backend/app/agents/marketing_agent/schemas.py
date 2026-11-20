@@ -50,6 +50,14 @@ class MarketingDraftOutput(BaseModel):
     call_to_action: str
     hashtags: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
+    caption: str | None = None
+    description: str | None = None
+    seo_keywords: list[str] = Field(default_factory=list)
+    visual_headline: str | None = None
+    visual_subhead: str | None = None
+    pillars: list[str] = Field(default_factory=list)
+    metric_highlight: str | None = None
+    storyboard_scenes: list[dict[str, Any]] = Field(default_factory=list)
     status: ApprovalStatus = "draft"
 
 

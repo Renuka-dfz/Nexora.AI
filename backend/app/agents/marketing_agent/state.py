@@ -15,11 +15,14 @@ from uuid import UUID
 class MarketingAgentState(TypedDict, total=False):
     """LangGraph state schema for Marketing Agent workflows."""
     company_id: UUID
+    company_name: str | None
     platform: str  # linkedin, instagram, article
+    content_type: str | None
     topic: str
     tone: str | None
     target_audience: str | None
     instructions: str | None
+    is_article: bool | None
     multi_stage: bool | None  # If True, forces 3-stage generation (research -> outline -> draft)
     stream: bool | None  # If True, streams tokens during draft generation
     model: str | None

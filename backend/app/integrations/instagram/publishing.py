@@ -33,7 +33,7 @@ async def create_instagram_media_container(
     Step 1: Upload media URL and caption to create an IG media container.
     Endpoint: POST /{ig-user-id}/media
     """
-    url = f"{META_GRAPH_BASE}/{request.instagram_user_id}/media"
+    url = f"{client.base_url}/{request.instagram_user_id}/media"
     params = {
         "image_url": request.image_url,
         "caption": request.caption,
@@ -60,7 +60,7 @@ async def check_container_status(
     Step 2: Check processing status of the created media container.
     Endpoint: GET /{container-id}?fields=status_code
     """
-    url = f"{META_GRAPH_BASE}/{container_id}"
+    url = f"{client.base_url}/{container_id}"
     params = {
         "fields": "status_code",
         "access_token": client.access_token,
@@ -83,7 +83,7 @@ async def publish_instagram_container(
     Step 3: Publish the processed container to the live Instagram feed.
     Endpoint: POST /{ig-user-id}/media_publish?creation_id={container_id}
     """
-    url = f"{META_GRAPH_BASE}/{instagram_user_id}/media_publish"
+    url = f"{client.base_url}/{instagram_user_id}/media_publish"
     params = {
         "creation_id": container_id,
         "access_token": client.access_token,

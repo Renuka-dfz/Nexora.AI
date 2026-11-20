@@ -49,8 +49,10 @@ from app.modules.marketing.models import (
 
 from app.modules.marketing.schemas import (
     ContentCreate,
+    ContentGenerateRequest,
     ContentListResponse,
     ContentRead,
+    ContentRejectionRequest,
     ContentUpdate,
     PerformanceCreate,
     PerformanceListResponse,
@@ -160,6 +162,130 @@ def create_content(
         ),
         company_id=request.company_id,
     )
+
+
+# =====================================================
+# 2b. GENERATE MARKETING CONTENT (AI AGENT)
+# ADMIN / USER (CREATOR)
+# =====================================================
+
+@router.post(
+    "/content/generate",
+    response_model=ContentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_content(
+    request: ContentGenerateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate grounded marketing content using the Marketing Agent (LangGraph + RAG).
+    Restricted to Admin and Creator (User). Reviewer cannot generate content.
+    Generates a draft with approval_status='draft'.
+    """
+    if user.company_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Company onboarding required",
+        )
+
+    if user.role not in ("admin", "user"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your role does not permit generating AI content",
+        )
+
+    from app.agents.marketing_agent.graph import build_marketing_agent_graph
+    from app.core.logger import workflow_logger
+
+    start_time = workflow_logger.start_pipeline(
+        workflow_name="Marketing Agent Content Studio",
+        topic=request.topic,
+        platform=request.platform,
+        format_type=request.content_type,
+        company_id=user.company_id,
+    )
+
+    graph = build_marketing_agent_graph(db)
+    initial_state = {
+        "company_id": user.company_id,
+        "user_id": user.user_id,
+        "topic": request.topic,
+        "platform": request.platform,
+        "content_type": request.content_type,
+        "tone": request.tone,
+        "instructions": request.instructions,
+        "multi_stage": request.multi_stage,
+        "is_article": (request.content_type == "article" or request.platform in ("article", "linkedin_article")),
+    }
+
+    result = graph.invoke(initial_state)
+
+    if result.get("status") == "failed":
+        err_msg = result.get("error") or "Content generation failed"
+        workflow_logger.error_pipeline(
+            workflow_name="Marketing Agent Content Studio",
+            start_time=start_time,
+            error_message=err_msg,
+            stage="graph_execution",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=err_msg,
+        )
+
+    if result.get("status") == "insufficient_information":
+        err_msg = "Insufficient verified company knowledge to ground this marketing request."
+        workflow_logger.error_pipeline(
+            workflow_name="Marketing Agent Content Studio",
+            start_time=start_time,
+            error_message=err_msg,
+            stage="rag_retrieval",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=err_msg,
+        )
+
+    content_id = result.get("content_id")
+    if not content_id:
+        val_report = result.get("validation_report") or {}
+        findings = [f.get("details") for f in val_report.get("findings", []) if not f.get("passed")]
+        reason = findings[0] if findings else "Content failed safety guardrails or lacks sufficient grounded evidence."
+        workflow_logger.error_pipeline(
+            workflow_name="Marketing Agent Content Studio",
+            start_time=start_time,
+            error_message=reason,
+            stage="validation_guardrails",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Content generation declined: {reason}",
+        )
+
+    content = db.get(DimContent, content_id)
+    if content is None:
+        workflow_logger.error_pipeline(
+            workflow_name="Marketing Agent Content Studio",
+            start_time=start_time,
+            error_message="Draft not found in database post-save",
+            stage="persistence",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Generated content draft not found in database.",
+        )
+
+    workflow_logger.complete_pipeline(
+        workflow_name="Marketing Agent Content Studio",
+        start_time=start_time,
+        content_id=content_id,
+        status="DRAFT_SAVED",
+    )
+
+    return content
+
 
 
 # =====================================================
@@ -504,9 +630,15 @@ def approve_content(
 )
 def reject_content(
     content_id: UUID,
+    request: ContentRejectionRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not request.feedback or not request.feedback.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Rejection feedback is required",
+        )
     return _transition_content(
         db,
         user,

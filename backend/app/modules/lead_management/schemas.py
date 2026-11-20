@@ -180,3 +180,8 @@ class QualificationHistoryResponse(BaseModel):
 class LeadDetailResponse(BaseModel):
     lead: LeadRead
     latest_qualification: QualificationRead | None = None
+
+
+class LeadEvaluationRequest(BaseModel):
+    inquiry_text: str = Field(min_length=5, description="Prospective client message or inquiry")
+

@@ -24,6 +24,7 @@ No CompanyMembership dependency.
 
 import logging
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import (
@@ -78,6 +79,7 @@ from app.modules.company_knowledge.schemas import (
 from app.rag.llm import GroundedRAGResponse
 from app.modules.company_knowledge.services.website_validation import (
     WebsiteValidationError,
+    canonicalize_url,
     validate_website,
 )
 from app.modules.company_knowledge.tasks import crawl_website_task
@@ -447,6 +449,40 @@ async def start_website_crawl(
         allowed_roles=("admin",),
     )
 
+    company = crud.get_company(db, company_id)
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    # Policy: Only registered company websites are accepted for crawling
+    if company.website_url:
+        try:
+            registered_canonical = canonicalize_url(company.website_url)
+            registered_host = (urlsplit(registered_canonical).hostname or "").lower().removeprefix("www.")
+            requested_canonical = canonicalize_url(str(request.website_url))
+            requested_host = (urlsplit(requested_canonical).hostname or "").lower().removeprefix("www.")
+        except WebsiteValidationError as exc:
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+
+        if requested_host != registered_host:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "unregistered_website",
+                    "message": f"Only your company's registered website ({company.website_url}) is accepted for crawling. To crawl a different site, update your registered website in Company Settings.",
+                },
+            )
+    else:
+        # If no registered website was set previously, register this URL as the company's verified domain
+        company.website_url = str(request.website_url)
+        db.add(company)
+        db.flush()
+
     try:
         validated = await validate_website(str(request.website_url))
     except WebsiteValidationError as exc:
@@ -557,6 +593,43 @@ def get_website_crawl_status(
             status_code=404,
             detail="Website crawl job not found",
         )
+    return job
+
+
+@router.post(
+    "/companies/{company_id}/website-crawls/{job_id}/cancel",
+    response_model=WebsiteCrawlJobRead,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_website_crawl(
+    company_id: UUID,
+    job_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Cancel an in-progress or queued website crawl job.
+    Marks status as failed with error_code='cancelled_by_user'.
+    """
+    check_company_permission(db, user, company_id, allowed_roles=("admin",))
+    job = db.scalar(
+        select(WebsiteCrawlJob).where(
+            WebsiteCrawlJob.company_id == company_id,
+            WebsiteCrawlJob.job_id == job_id,
+        )
+    )
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Website crawl job not found",
+        )
+    if job.status in ("queued", "running"):
+        job.status = "failed"
+        job.error_code = "cancelled_by_user"
+        job.error_message = "Crawl job was cancelled by user."
+        job.finished_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(job)
     return job
 
 

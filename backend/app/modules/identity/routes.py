@@ -21,17 +21,21 @@ Admin Management:
 - Activate / deactivate users
 """
 
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
+import jwt
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     status,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 
 from app.core.security import (
@@ -42,11 +46,16 @@ from app.core.security import (
     verify_password,
 )
 
+from app.modules.company_knowledge.models import DimCompany
 from app.modules.identity import crud
 
 from app.modules.identity.models import User
 
 from app.modules.identity.schemas import (
+    InvitationAcceptRequest,
+    InvitationCreate,
+    InvitationRead,
+    InvitationVerifyResponse,
     LoginRequest,
     RegisterRead,
     RegisterRequest,
@@ -504,3 +513,216 @@ def change_user_status(
         )
 
     return user
+
+
+# =====================================================
+# 11. ADMIN - CREATE TEAM INVITATION
+# =====================================================
+
+@user_router.post(
+    "/invite",
+    response_model=InvitationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_invitation(
+    request: InvitationCreate,
+    current_user: User = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin invites a Creator or Reviewer to join their company.
+    Produces a single-use, company-bound, cryptographically signed invitation token.
+    """
+    if current_user.company_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin is not assigned to a company",
+        )
+
+    email = str(request.email).strip().lower()
+
+    existing = crud.get_user_by_email(db, email)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="User with this email is already registered",
+        )
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=2)
+
+    payload = {
+        "sub": email,
+        "company_id": str(current_user.company_id),
+        "role": request.role,
+        "type": "invitation",
+        "iat": now,
+        "exp": expires_at,
+    }
+
+    invitation_token = jwt.encode(
+        payload,
+        settings.JWT_SECRET_KEY,
+        algorithm="HS256",
+    )
+
+    company = db.get(DimCompany, current_user.company_id)
+    company_name = company.company_name if company else None
+
+    return {
+        "email": email,
+        "role": request.role,
+        "company_id": current_user.company_id,
+        "company_name": company_name,
+        "expires_at": expires_at,
+        "invitation_token": invitation_token,
+        "invite_url": f"/invite/accept?token={invitation_token}",
+    }
+
+
+# =====================================================
+# 12. VERIFY TEAM INVITATION TOKEN
+# =====================================================
+
+@router.get(
+    "/invitations/verify",
+    response_model=InvitationVerifyResponse,
+)
+def verify_invitation_token(
+    token: str = Query(..., min_length=10),
+    db: Session = Depends(get_db),
+):
+    """
+    Verifies that an invitation token is valid, unexpired, and not yet claimed.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=["HS256"],
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=410,
+            detail="Invitation link has expired",
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid invitation token",
+        ) from None
+
+    if payload.get("type") != "invitation":
+        raise HTTPException(
+            status_code=400,
+            detail="Token is not an invitation token",
+        )
+
+    email = payload.get("sub", "").strip().lower()
+    company_id = UUID(payload["company_id"])
+    role = payload.get("role", "user")
+
+    # Check if user has already accepted or registered
+    existing = crud.get_user_by_email(db, email)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Invitation has already been used",
+        )
+
+    company = db.get(DimCompany, company_id)
+    company_name = company.company_name if company else None
+    exp_dt = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+
+    return {
+        "email": email,
+        "role": role,
+        "company_id": company_id,
+        "company_name": company_name,
+        "expires_at": exp_dt,
+    }
+
+
+# =====================================================
+# 13. ACCEPT TEAM INVITATION & SET PASSWORD
+# =====================================================
+
+@router.post(
+    "/invitations/accept",
+    response_model=RegisterRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def accept_invitation(
+    request: InvitationAcceptRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Invited user sets their password and claims the account.
+    The account is atomically bound to the Admin's company and assigned role.
+    """
+    try:
+        payload = jwt.decode(
+            request.token,
+            settings.JWT_SECRET_KEY,
+            algorithms=["HS256"],
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=410,
+            detail="Invitation link has expired",
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid invitation token",
+        ) from None
+
+    if payload.get("type") != "invitation":
+        raise HTTPException(
+            status_code=400,
+            detail="Token is not an invitation token",
+        )
+
+    email = payload.get("sub", "").strip().lower()
+    company_id = UUID(payload["company_id"])
+    role = payload.get("role", "user")
+
+    if role not in ("admin", "user", "reviewer"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid role in invitation token",
+        )
+
+    existing = crud.get_user_by_email(db, email)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists",
+        )
+
+    company = db.get(DimCompany, company_id)
+    if company is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Company associated with invitation no longer exists",
+        )
+
+    try:
+        user = crud.create_user(
+            db=db,
+            email=email,
+            password_hash=hash_password(request.password),
+            company_id=company_id,
+            role=role,
+        )
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists",
+        ) from None
+
+    return {
+        "access_token": create_access_token(user.user_id),
+        "user": user,
+    }

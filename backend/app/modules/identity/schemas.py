@@ -123,3 +123,36 @@ class UserUpdate(BaseModel):
 class UserListResponse(BaseModel):
     total: int = Field(ge=0)
     items: list[UserRead]
+
+
+# =====================================================
+# TEAM INVITATION SCHEMAS
+# =====================================================
+
+class InvitationCreate(BaseModel):
+    email: EmailStr = Field(max_length=255)
+    role: UserRole = "user"
+
+
+class InvitationRead(BaseModel):
+    email: EmailStr
+    role: UserRole
+    company_id: UUID
+    company_name: str | None = None
+    expires_at: datetime
+    invitation_token: str
+    invite_url: str
+
+
+class InvitationVerifyResponse(BaseModel):
+    email: EmailStr
+    role: UserRole
+    company_id: UUID
+    company_name: str | None = None
+    expires_at: datetime
+
+
+class InvitationAcceptRequest(BaseModel):
+    token: str
+    password: Password
+

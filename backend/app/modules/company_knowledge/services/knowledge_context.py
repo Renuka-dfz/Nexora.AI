@@ -31,6 +31,26 @@ CHARS_PER_TOKEN = 4
 DEFAULT_MAX_CONTEXT_TOKENS = 2000
 
 
+# Category presentation priority to ensure critical product & solution facts are never crowded out
+CATEGORY_PRIORITY = [
+    "Products",
+    "Solutions",
+    "Industry Expertise",
+    "Company Overview",
+    "Technology Stack",
+    "Case Studies",
+    "Innovations and Research",
+    "Services",
+    "Knowledge Resources",
+    "Achievements",
+    "Brand Identities",
+    "Customers",
+    "Contact Information",
+    "Pricing",
+    "Careers",
+]
+
+
 def prepare_knowledge_context(
     *,
     structured_facts: Sequence[StructuredFactRead] | None = None,
@@ -95,27 +115,60 @@ def prepare_knowledge_context(
             seen_fact_keys.add(key)
             facts_by_category[fact.category_name].append(fact)
 
-        for category_name, category_facts in sorted(facts_by_category.items()):
+        # Allocate structured facts budget to ensure semantic chunks are not starved
+        structured_char_budget = int(max_chars * 0.55) if chunks else max_chars
+
+        sorted_categories = sorted(
+            facts_by_category.items(),
+            key=lambda item: (
+                CATEGORY_PRIORITY.index(item[0]) if item[0] in CATEGORY_PRIORITY else 999,
+                item[0],
+            ),
+        )
+
+        for category_name, category_facts in sorted_categories:
             cat_header = f"### {category_name}"
-            if current_length + len(cat_header) + 20 > max_chars:
-                lines.append("... [Additional structured facts truncated to fit context budget]")
+            if current_length + len(cat_header) + 20 > structured_char_budget:
+                lines.append("... [Additional structured facts truncated to balance semantic evidence]")
                 break
 
             lines.append(cat_header)
             current_length += len(cat_header) + 1
 
+            # Sort facts within category: prioritize items matching core product/agent intent
+            def _fact_priority(f: StructuredFactRead) -> int:
+                url = (f.source_url or "").casefold()
+                if "careers" in url or "gallery" in url or "canvas" in url:
+                    return 2
+                t = f"{f.page_title or ''} {f.title} {f.heading_path or ''} {url}".casefold()
+                if "/agents" in url or "agent" in t or "contract" in t or "intake" in t or "bordereaux" in t or "registry" in t:
+                    return 0
+                return 1
+
+            sorted_category_facts = sorted(category_facts, key=_fact_priority)
+
             facts_to_include = (
-                category_facts[:max_facts_per_category]
+                sorted_category_facts[:max_facts_per_category]
                 if max_facts_per_category is not None
-                else category_facts
+                else sorted_category_facts
             )
             for fact in facts_to_include:
                 title = fact.title.strip()
+                # Clean up page_title if present to provide clear agent/product context
+                clean_page_title = ""
+                if getattr(fact, "page_title", None):
+                    pt = fact.page_title.strip()
+                    for delim in [" | ", " - ", " – "]:
+                        if delim in pt:
+                            pt = pt.split(delim)[0].strip()
+                    if pt:
+                        clean_page_title = f"[{pt}] "
+
                 desc = f": {fact.description.strip()}" if fact.description else ""
                 source = f" (Source: {fact.source_url})" if fact.source_url else ""
-                entry = f"- **{title}**{desc}{source}"
+                entry = f"- **{clean_page_title}{title}**{desc}{source}"
 
-                if current_length + len(entry) + 10 > max_chars:
+                if current_length + len(entry) + 10 > structured_char_budget:
                     lines.append("- ... [Category items truncated to fit context budget]")
                     break
 

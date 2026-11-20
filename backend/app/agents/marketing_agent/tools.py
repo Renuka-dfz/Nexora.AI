@@ -36,6 +36,7 @@ def retrieve_company_knowledge_tool(
     company_id: UUID,
     topic: str,
     platform: str | None = None,
+    content_type: str | None = None,
 ) -> CompanyKnowledgeContext:
     """Retrieve grounded company facts and pgvector evidence for a given marketing topic."""
     logger.info("Tool execute: retrieve_company_knowledge company=%s topic=%s", company_id, topic)
@@ -44,6 +45,7 @@ def retrieve_company_knowledge_tool(
         company_id=company_id,
         topic=topic,
         platform=platform,
+        content_type=content_type,
     )
 
 
@@ -89,7 +91,7 @@ def save_marketing_draft_tool(
     content_type: str = "post",
     topic: str | None = None,
     tone: str | None = None,
-    approval_status: str = "pending",
+    approval_status: str = "draft",
 ) -> UUID:
     """
     Persist generated marketing copy into PostgreSQL dim_content table.
@@ -100,7 +102,7 @@ def save_marketing_draft_tool(
     - content_title in varchar(255), non-nullable
     """
     # 1. Normalize and validate approval status against PostgreSQL constraint
-    norm_status = (approval_status or "pending").strip().lower()
+    norm_status = (approval_status or "draft").strip().lower()
     if norm_status == "pending_approval":
         norm_status = "pending"
     if norm_status not in ALLOWED_APPROVAL_STATUSES:

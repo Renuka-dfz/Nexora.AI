@@ -43,6 +43,36 @@ class ContentCreate(BaseModel):
         return value
 
 
+class ContentGenerateRequest(BaseModel):
+    topic: str = Field(min_length=3, max_length=255)
+    platform: Platform = "linkedin"
+    content_type: str = Field(default="post", min_length=1, max_length=50)
+    tone: str | None = Field(default="authoritative yet accessible", max_length=50)
+    instructions: str | None = Field(default=None, max_length=1000)
+    multi_stage: bool = False
+
+    @field_validator("topic")
+    @classmethod
+    def strip_topic(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Topic cannot be blank")
+        return value
+
+
+class ContentRejectionRequest(BaseModel):
+    feedback: str = Field(min_length=1, max_length=1000, description="Audit reason and revision feedback")
+
+    @field_validator("feedback")
+    @classmethod
+    def strip_feedback(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Rejection feedback cannot be blank")
+        return value
+
+
+
 class ContentUpdate(BaseModel):
     content_title: str | None = Field(default=None, min_length=1, max_length=255)
     content_type: str | None = Field(default=None, min_length=1, max_length=50)

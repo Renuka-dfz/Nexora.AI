@@ -79,6 +79,20 @@ HYBRID_PATTERNS = [
 CATEGORY_INTENT_PATTERNS: list[tuple[re.Pattern, list[str]]] = [
     (
         re.compile(
+            r"\b(ai\s*agents?|autonomous\s*agents?|agentic(\s*workflows?)?|intelligent\s*agents?|agents?)\b",
+            re.I,
+        ),
+        ["Products", "Solutions"],
+    ),
+    (
+        re.compile(
+            r"\b(insurance|bordereaux|geotechnical|drilling|field\s*records?|incentive\s*compensation|environmental|site\s*(history|intelligence))\b",
+            re.I,
+        ),
+        ["Products", "Industry Expertise", "Solutions"],
+    ),
+    (
+        re.compile(
             r"\b(case\s*stud(y|ies)|customer\s*stor(y|ies)|success\s*stor(y|ies)|client\s*stor(y|ies)|outcomes|use\s*cases?)\b",
             re.I,
         ),
@@ -271,9 +285,15 @@ def retrieve_company_knowledge(
 
     # Detect query category intent
     detected_categories = detect_query_categories(query_str)
-    effective_categories = (
-        list(request.categories) if request.categories else detected_categories
-    )
+    if detected_categories and request.categories:
+        effective_categories = list(detected_categories)
+        for c in request.categories:
+            if c not in effective_categories:
+                effective_categories.append(c)
+    elif detected_categories:
+        effective_categories = detected_categories
+    else:
+        effective_categories = list(request.categories) if request.categories else None
 
     structured_facts: list[StructuredFactRead] = []
     semantic_chunks: list[SemanticChunkRead] = []
@@ -376,13 +396,19 @@ def retrieve_company_knowledge(
     # =====================================================
     elif selected_mode == KnowledgeMode.HYBRID:
         # A. Structured Baseline: authoritative facts take precedence
-        if request.categories:
+        if detected_categories:
+            # Prioritize detected category intent to target the specific subject
+            if request.categories:
+                structured_categories = list(detected_categories)
+                for cat in request.categories:
+                    if cat not in structured_categories:
+                        structured_categories.append(cat)
+            else:
+                structured_categories = detected_categories
+            structured_limit = request.limit_structured
+        elif request.categories:
             structured_categories = request.categories
             structured_limit = request.limit_structured
-        elif detected_categories:
-            # Prioritize detected category intent to prevent bloating context with unrelated categories
-            structured_categories = detected_categories
-            structured_limit = min(request.limit_structured, 12) if query_str else request.limit_structured
         else:
             structured_categories = DEFAULT_HYBRID_CATEGORIES
             structured_limit = min(request.limit_structured, 12) if query_str else request.limit_structured
@@ -454,12 +480,15 @@ def retrieve_company_knowledge(
     # =====================================================
     # 4. CONTEXT PREPARATION
     # =====================================================
+    # Ensure sufficient facts per category for rich context (especially Products & Solutions)
+    facts_per_cat = 15 if request.max_context_tokens >= 3000 else (6 if query_str else None)
+
     context_text = prepare_knowledge_context(
         structured_facts=structured_facts,
         semantic_chunks=semantic_chunks,
         company_name=company_name,
         max_tokens=request.max_context_tokens,
-        max_facts_per_category=4 if query_str else None,
+        max_facts_per_category=facts_per_cat,
     )
 
     logger.info(
@@ -478,6 +507,7 @@ def retrieve_company_knowledge(
 
     return CompanyKnowledgeContext(
         company_id=request.company_id,
+        company_name=company_name,
         mode=selected_mode,
         structured_facts=structured_facts,
         semantic_results=semantic_chunks,

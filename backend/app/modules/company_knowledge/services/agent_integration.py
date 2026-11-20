@@ -54,32 +54,43 @@ def get_marketing_knowledge_context(
     company_id: UUID,
     topic: str | None = None,
     platform: str | None = None,
+    content_type: str | None = None,
     categories: Sequence[str] | None = None,
     max_tokens: int = 2000,
 ) -> CompanyKnowledgeContext:
     """
     Retrieve knowledge context tailored for Marketing Agent draft generation.
 
-    - If topic is provided: runs in HYBRID mode combining structured brand/product facts
+    - If topic is provided: runs in HYBRID mode combining structured product/solution facts
       with semantic retrieval of relevant case studies and explanations.
     - If topic is omitted: runs in STRUCTURED mode retrieving core company facts.
     """
-    selected_categories = list(categories) if categories else MARKETING_DEFAULT_CATEGORIES
+    # If explicit categories are provided, use them; otherwise allow knowledge router
+    # to dynamically detect categories from topic while preserving marketing defaults
+    selected_categories = list(categories) if categories else None
 
-    query_text = topic
-    if topic and platform:
-        query_text = f"{topic} for {platform}"
+    # Keep query clean without platform suffixes to avoid embedding/keyword dilution
+    query_text = topic.strip() if topic else None
 
-    mode = KnowledgeMode.HYBRID if topic else KnowledgeMode.STRUCTURED
+    mode = KnowledgeMode.HYBRID if query_text else KnowledgeMode.STRUCTURED
+
+    is_article = (
+        (content_type is not None and "article" in content_type.lower())
+        or (platform is not None and platform.lower() in ("article", "linkedin_article"))
+        or (topic is not None and "article" in topic.lower())
+    )
+    top_k = 10 if is_article else 5
+    token_budget = max(max_tokens, 3500) if is_article else max_tokens
+    limit_struct = 50 if is_article else 40
 
     request = KnowledgeQueryRequest(
         company_id=company_id,
         query=query_text,
         mode=mode,
         categories=selected_categories,
-        top_k_semantic=5,
-        limit_structured=40,
-        max_context_tokens=max_tokens,
+        top_k_semantic=top_k,
+        limit_structured=limit_struct,
+        max_context_tokens=token_budget,
     )
 
     logger.debug(

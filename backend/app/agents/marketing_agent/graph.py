@@ -36,6 +36,7 @@ from app.agents.marketing_agent.tools import (
     save_marketing_draft_tool,
 )
 from app.rag.llm import INSUFFICIENT_INFO_MESSAGE, generate_grounded_answer
+from app.core.logger import workflow_logger
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,11 @@ def understand_request_node(state: MarketingAgentState) -> MarketingAgentState:
 
     # Detect if the user's request is asking for market research / industry trends
     text_to_check = f"{topic} {instructions}".lower()
+    is_article = (
+        platform in ("article", "linkedin_article")
+        or "article" in topic.lower()
+        or (instructions and "article" in instructions.lower())
+    )
     market_research_patterns = [
         r"\bmarket\s*(research|trends?|landscape|dynamics|analysis|outlook|overview)\b",
         r"\bindustry\s*(trends?|insights?|landscape|analysis|outlook|overview)\b",
@@ -71,16 +77,23 @@ def understand_request_node(state: MarketingAgentState) -> MarketingAgentState:
     is_market_research = any(re.search(pat, text_to_check) for pat in market_research_patterns)
 
     logger.info(
-        "Understood marketing request: platform=%s topic=%s is_market_research=%s",
+        "Understood marketing request: platform=%s is_article=%s topic=%s is_market_research=%s",
         platform,
+        is_article,
         topic[:50],
         is_market_research,
+    )
+    workflow_logger.stage(
+        1,
+        "Request Intake",
+        f"Platform: {platform} | Format: {state.get('content_type', 'post')} | Tone: {tone}",
     )
     return {
         **state,
         "platform": platform,
         "topic": topic,
         "tone": tone,
+        "is_article": is_article,
         "is_market_research": is_market_research,
         "external_research": None,
         "status": "request_understood",
@@ -101,15 +114,26 @@ def retrieve_marketing_knowledge_node(
     topic: str = state["topic"]
     platform: str = state.get("platform", "linkedin")
 
+    content_type: str | None = state.get("content_type") or ("article" if state.get("is_article") else None)
+
     context_payload = retrieve_company_knowledge_tool(
         db,
         company_id=company_id,
         topic=topic,
         platform=platform,
+        content_type=content_type,
+    )
+
+    workflow_logger.rag_retrieval(
+        mode=context_payload.mode.value,
+        facts_count=len(context_payload.structured_facts),
+        chunks_count=len(context_payload.semantic_results),
+        sources=[f.source_url for f in context_payload.structured_facts if f.source_url],
     )
 
     return {
         **state,
+        "company_name": context_payload.company_name or state.get("company_name"),
         "knowledge_mode": context_payload.mode.value,
         "company_context": context_payload.context_text,
         "structured_facts": [f.model_dump() for f in context_payload.structured_facts],
@@ -160,8 +184,9 @@ def generate_grounded_research_node(state: MarketingAgentState) -> MarketingAgen
 
     model: str | None = state.get("model")
     instructions: str = state.get("instructions", "")
+    company_name = state.get("company_name") or "the company"
     research_query = (
-        f"What are DataFactZ's documented AI agents, delivery methodologies, industry use cases, and data platform foundations regarding {topic}?"
+        f"What are {company_name}'s documented AI agents, delivery methodologies, industry use cases, and data platform foundations regarding {topic}?"
     )
     research_response = generate_grounded_answer(
         question=research_query,
@@ -257,11 +282,60 @@ def generate_draft_node(state: MarketingAgentState) -> MarketingAgentState:
         model=state.get("model"),
     )
 
+    content_type = state.get("content_type", "post")
+
+    if platform.lower() == "instagram":
+        # Dedicated structured format for Instagram with separate Caption, Description, Hashtags, and SEO Keywords
+        caption_text = (draft.caption or draft.hook or topic).strip()
+        desc_text = (draft.description or draft.body or "").strip()
+        tags_text = " ".join(t if t.startswith("#") else f"#{t}" for t in (draft.hashtags or ["#DataFactZ", "#EnterpriseAI", "#DataEngineering"]))
+        seo_text = ", ".join(draft.seo_keywords or [f"{topic.lower()}", "enterprise AI", "pgvector", "data engineering"])
+
+        parts = [
+            f"### CAPTION\n{caption_text}",
+            f"### DESCRIPTION\n{desc_text}",
+            f"### HASHTAGS\n{tags_text}",
+            f"### SEO KEYWORDS\n{seo_text}",
+        ]
+
+        if content_type == "image" and draft.visual_headline:
+            pillars_str = "\n".join(f"- {p}" for p in draft.pillars) if draft.pillars else f"- {topic} architecture"
+            parts.insert(0, f"### VISUAL ASSET SPECIFICATION\n**Headline:** {draft.visual_headline}\n**Subhead:** {draft.visual_subhead}\n**Core Pillars:**\n{pillars_str}\n**Metric:** {draft.metric_highlight or 'pgvector Indexed'}")
+        elif content_type == "video" and draft.storyboard_scenes:
+            scene_lines = [
+                f"- Scene {s.get('scene_num', i+1)} ({s.get('time_range', '')}): **{s.get('title', '')}** — Visual: {s.get('visual', '')} | Voiceover: \"{s.get('voiceover', '')}\""
+                for i, s in enumerate(draft.storyboard_scenes)
+            ]
+            parts.insert(0, f"### REEL STORYBOARD (60 SECONDS)\n" + "\n".join(scene_lines))
+
+        full_content = "\n\n".join(parts)
+    else:
+        # Standard unified format for LinkedIn (No broken-out fields needed)
+        full_content = draft.body.strip()
+        if draft.hook and draft.hook.strip() not in full_content:
+            full_content = f"{draft.hook.strip()}\n\n{full_content}"
+        if draft.call_to_action and draft.call_to_action.strip() not in full_content:
+            full_content = f"{full_content}\n\n{draft.call_to_action.strip()}"
+        if draft.hashtags:
+            tag_line = " ".join(t if t.startswith("#") else f"#{t}" for t in draft.hashtags)
+            if tag_line not in full_content:
+                full_content = f"{full_content}\n\n{tag_line}"
+
+        if content_type == "image" and draft.visual_headline:
+            pillars_str = "\n".join(f"- {p}" for p in draft.pillars) if draft.pillars else f"- {topic} architecture"
+            full_content = f"### VISUAL GRAPHIC DIRECTION\n**Headline:** {draft.visual_headline}\n**Subhead:** {draft.visual_subhead}\n{pillars_str}\n\n{full_content}"
+        elif content_type == "video" and draft.storyboard_scenes:
+            scene_lines = [
+                f"- Scene {s.get('scene_num', i+1)} ({s.get('time_range', '')}): **{s.get('title', '')}**\n  *Visual:* {s.get('visual', '')}\n  *Voiceover:* \"{s.get('voiceover', '')}\""
+                for i, s in enumerate(draft.storyboard_scenes)
+            ]
+            full_content = f"### REEL STORYBOARD (60 SECONDS)\n" + "\n".join(scene_lines) + f"\n\n### POST COPY\n{full_content}"
+
     return {
         **state,
         "draft_title": draft.title,
         "draft_hook": draft.hook,
-        "draft_content": f"{draft.hook}\n\n{draft.body}\n\n{draft.call_to_action}",
+        "draft_content": full_content,
         "draft_cta": draft.call_to_action,
         "hashtags": draft.hashtags,
         "sources": draft.sources,
@@ -287,6 +361,13 @@ def validate_content_node(state: MarketingAgentState) -> MarketingAgentState:
         platform=platform,
     )
 
+    workflow_logger.safeguardrail_audit(
+        passed=report.passed,
+        grounding_score=report.factual_grounding_score,
+        findings_count=len(report.findings),
+        warnings=report.unsupported_claims,
+    )
+
     return {
         **state,
         "validation_report": report.model_dump(),
@@ -303,20 +384,25 @@ def prepare_draft_for_approval_node(
     db: Session,
 ) -> MarketingAgentState:
     """
-    Persist validated draft into PostgreSQL (dim_content) with status 'pending'.
-    Does NOT publish. The draft awaits explicit human review in the Content Studio.
-    Guard: Rejects persistence if validation failed or evidence was insufficient.
+    Persist validated draft into PostgreSQL (dim_content) with status 'draft'.
+    Does NOT publish. The draft awaits explicit human review in Content Studio / Editorial Queue.
+    Guard: Rejects persistence only if critical safety violations or zero evidence occurred.
     """
-    # Guard against invalid, unvalidated, or insufficient evidence content
+    val_report = state.get("validation_report") or {}
+    critical_failures = [
+        f for f in val_report.get("findings", [])
+        if not f.get("passed") and f.get("severity") == "critical"
+    ]
+    # Guard against invalid, unvalidated, or critical violation content
     if (
-        not state.get("is_safe", False)
-        or state.get("status") in ("insufficient_information", "validation_warning", "failed")
+        critical_failures
+        or state.get("status") in ("insufficient_information", "failed")
         or not state.get("draft_content")
         or state.get("draft_content") == INSUFFICIENT_INFO_MESSAGE
     ):
         logger.warning(
-            "Skipping dim_content persistence: content failed validation (is_safe=%s, status=%s) or lacks sufficient evidence.",
-            state.get("is_safe"),
+            "Skipping dim_content persistence: content failed critical validation (critical=%s, status=%s) or lacks sufficient evidence.",
+            len(critical_failures),
             state.get("status"),
         )
         return {
@@ -334,24 +420,49 @@ def prepare_draft_for_approval_node(
     topic: str | None = state.get("topic")
     tone: str | None = state.get("tone")
 
+    is_article = (
+        platform in ("article", "linkedin_article")
+        or state.get("is_article", False)
+        or "article" in (state.get("content_type") or "").lower()
+        or "article" in (topic or "").lower()
+    )
+    req_type = (state.get("content_type") or "post").strip().lower()
+    if is_article:
+        content_type = "article"
+    elif req_type in ("image", "video"):
+        content_type = req_type
+    elif platform in ("linkedin", "instagram"):
+        content_type = "post"
+    else:
+        content_type = "article"
+
+    platform_target = "linkedin" if platform in ("linkedin", "linkedin_article", "article") else platform
+
     content_id = save_marketing_draft_tool(
         db,
         company_id=company_id,
         title=title,
         content_text=content_text,
-        platform=platform,
-        content_type="post" if platform in ("linkedin", "instagram") else "article",
+        platform=platform_target,
+        content_type=content_type,
         topic=topic,
         tone=tone,
-        approval_status="pending",
+        approval_status="draft",
+    )
+
+    workflow_logger.stage(
+        5,
+        "Database Persistence",
+        f"Persisted draft {content_id} to dim_content (approval_status=draft)",
+        status="COMPLETED",
     )
 
     return {
         **state,
         "content_id": content_id,
-        "approval_status": "pending",
+        "approval_status": "draft",
         "generation_type": "ai",
-        "status": "awaiting_human_approval",
+        "status": "draft_saved",
     }
 
 
@@ -392,9 +503,14 @@ def build_marketing_agent_graph(db: Session) -> Any:
         return "plan_content"
 
     def route_after_validation(state: MarketingAgentState) -> str:
-        """Route to END if content validation failed or is unsafe; otherwise proceed to approval persistence."""
-        if not state.get("is_safe", False) or state.get("status") == "validation_warning":
-            logger.warning("Marketing content validation failed; terminating workflow without creating content record.")
+        """Route to END if critical safety checks failed; otherwise proceed to approval persistence."""
+        val_report = state.get("validation_report") or {}
+        critical_failures = [
+            f for f in val_report.get("findings", [])
+            if not f.get("passed") and f.get("severity") == "critical"
+        ]
+        if critical_failures or state.get("status") in ("insufficient_information", "failed"):
+            logger.warning("Marketing content critical validation failed; terminating workflow without creating content record.")
             return END
         return "prepare_approval"
 

@@ -187,6 +187,7 @@ class StructuredFactRead(BaseModel):
     verification_status: str
     is_current: bool = True
     extracted_at: datetime | None = None
+    page_title: str | None = None
 
 
 class SemanticChunkRead(BaseModel):
@@ -222,6 +223,7 @@ class CompanyKnowledgeContext(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     company_id: UUID
+    company_name: str | None = None
     mode: KnowledgeMode
     structured_facts: list[StructuredFactRead] = Field(default_factory=list)
     semantic_results: list[SemanticChunkRead] = Field(default_factory=list)
