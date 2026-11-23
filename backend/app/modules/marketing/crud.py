@@ -141,12 +141,9 @@ def update_content(
     if content is None:
         return None
 
-    # Published or approved content should not be
-    # modified without a versioning workflow.
-    if content.approval_status == "approved":
-        raise ValueError(
-            "Approved content cannot be edited directly"
-        )
+    # Editing any content (including previously approved content)
+    # invalidates approval and automatically returns status to 'draft'
+    # requiring explicit re-submission and review.
 
     allowed_fields = {
         "content_title",

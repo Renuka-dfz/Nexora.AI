@@ -90,6 +90,7 @@ def get_structured_facts(
             FactCompanyIntelligence,
             DimCategory.category_name,
             DimSource.source_url,
+            DimSource.page_title,
         )
         .join(
             DimCategory,
@@ -106,41 +107,83 @@ def get_structured_facts(
         )
     )
 
-    if categories:
-        lowered_categories = [c.strip().casefold() for c in categories if c.strip()]
-        if lowered_categories:
-            statement = statement.where(
-                func.lower(DimCategory.category_name).in_(lowered_categories)
-            )
-
-    statement = (
-        statement.order_by(
-            DimCategory.category_name.asc(),
-            FactCompanyIntelligence.section_order.asc().nulls_last(),
-            FactCompanyIntelligence.fact_id.asc(),
-        )
-        .limit(limit)
-    )
-
-    rows = db.execute(statement).all()
-
+    clean_categories = [c.strip() for c in categories if c.strip()] if categories else []
     facts: list[StructuredFactRead] = []
-    for fact_row, category_name, source_url in rows:
-        facts.append(
-            StructuredFactRead(
-                fact_id=fact_row.fact_id,
-                company_id=fact_row.company_id,
-                category_id=fact_row.category_id,
-                category_name=category_name,
-                title=fact_row.title,
-                description=fact_row.description,
-                source_url=source_url,
-                heading_path=fact_row.heading_path,
-                verification_status=fact_row.verification_status,
-                is_current=fact_row.is_current,
-                extracted_at=fact_row.extracted_at,
+
+    if len(clean_categories) > 1:
+        # Balanced category retrieval: fetch a fair quota per category
+        # to prevent alphabetical bias (e.g. "Brand Identities" crowding out "Products")
+        per_cat_limit = max(5, (limit + len(clean_categories) - 1) // len(clean_categories))
+        seen_fact_ids = set()
+
+        for cat in clean_categories:
+            if len(facts) >= limit:
+                break
+            stmt = (
+                statement.where(
+                    func.lower(DimCategory.category_name) == cat.casefold()
+                )
+                .order_by(
+                    FactCompanyIntelligence.section_order.asc().nulls_last(),
+                    FactCompanyIntelligence.fact_id.asc(),
+                )
+                .limit(per_cat_limit)
             )
+            cat_rows = db.execute(stmt).all()
+            for fact_row, category_name, source_url, page_title in cat_rows:
+                if fact_row.fact_id not in seen_fact_ids:
+                    seen_fact_ids.add(fact_row.fact_id)
+                    facts.append(
+                        StructuredFactRead(
+                            fact_id=fact_row.fact_id,
+                            company_id=fact_row.company_id,
+                            category_id=fact_row.category_id,
+                            category_name=category_name,
+                            title=fact_row.title,
+                            description=fact_row.description,
+                            source_url=source_url,
+                            heading_path=fact_row.heading_path,
+                            verification_status=fact_row.verification_status,
+                            is_current=fact_row.is_current,
+                            extracted_at=fact_row.extracted_at,
+                            page_title=page_title,
+                        )
+                    )
+                    if len(facts) >= limit:
+                        break
+    else:
+        if len(clean_categories) == 1:
+            statement = statement.where(
+                func.lower(DimCategory.category_name) == clean_categories[0].casefold()
+            )
+
+        statement = (
+            statement.order_by(
+                DimCategory.category_name.asc(),
+                FactCompanyIntelligence.section_order.asc().nulls_last(),
+                FactCompanyIntelligence.fact_id.asc(),
+            )
+            .limit(limit)
         )
+
+        rows = db.execute(statement).all()
+        for fact_row, category_name, source_url, page_title in rows:
+            facts.append(
+                StructuredFactRead(
+                    fact_id=fact_row.fact_id,
+                    company_id=fact_row.company_id,
+                    category_id=fact_row.category_id,
+                    category_name=category_name,
+                    title=fact_row.title,
+                    description=fact_row.description,
+                    source_url=source_url,
+                    heading_path=fact_row.heading_path,
+                    verification_status=fact_row.verification_status,
+                    is_current=fact_row.is_current,
+                    extracted_at=fact_row.extracted_at,
+                    page_title=page_title,
+                )
+            )
 
     logger.debug(
         "Retrieved %d structured facts for company %s",

@@ -662,6 +662,27 @@ def test_website_crawl_requires_admin_and_returns_job(monkeypatch):
     assert status_response.json()["job_id"] == job["job_id"]
 
 
+def test_website_crawl_rejects_unregistered_website():
+    headers = auth_headers()
+    company = client.post(
+        "/api/v1/companies",
+        json={"company_name": "Registered Company", "website_url": "https://datafactz.ai"},
+        headers=headers,
+    ).json()
+    company_id = company["company_id"]
+
+    # Try crawling an unregistered domain (e.g. google.com)
+    response = client.post(
+        f"/api/v1/companies/{company_id}/website-crawls",
+        json={"website_url": "https://google.com"},
+        headers=headers,
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "unregistered_website"
+    assert "Only your company's registered website" in detail["message"]
+
+
 def test_website_crawl_request_executes_worker_and_persists_results(
     monkeypatch,
     request,
