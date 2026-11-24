@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { companyApi } from '../../lib/api/company';
 import { Company } from '../../types';
 import {
+  ArrowRight,
+  BarChart3,
+  Building2,
+  CheckCircle2,
+  Globe2,
+  Loader2,
+  Search,
   Sparkles,
   UserCheck,
-  Building2,
-  ArrowRight,
-  ShieldCheck,
-  Sliders,
+  X,
+  Zap,
 } from 'lucide-react';
 
 interface OverviewPageProps {
@@ -18,288 +23,204 @@ interface OverviewPageProps {
 export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
   const { companyId, companyName: authCompanyName } = useAuth();
   const [company, setCompany] = useState<Company | null>(null);
-  const [backendReady, setBackendReady] = useState(true);
+  const [crawlOpen, setCrawlOpen] = useState(false);
+  const [crawlUrl, setCrawlUrl] = useState('');
+  const [crawlState, setCrawlState] = useState<'idle' | 'running' | 'success' | 'failed'>('idle');
+  const [crawlJobId, setCrawlJobId] = useState<string | null>(null);
+  const [pagesProcessed, setPagesProcessed] = useState(0);
+  const [sectionsSaved, setSectionsSaved] = useState(0);
+  const [crawlError, setCrawlError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
-
-    let isMounted = true;
-    const fetchCompanyData = async () => {
-      try {
-        const data = await companyApi.getCompany(companyId);
-        if (isMounted) {
-          setCompany(data);
-          setBackendReady(true);
-        }
-      } catch {
-        if (isMounted) {
-          setBackendReady(false);
-        }
-      }
-    };
-
-    fetchCompanyData();
-
-    return () => {
-      isMounted = false;
-    };
+    companyApi.getCompany(companyId).then(setCompany).catch(() => undefined);
   }, [companyId]);
 
+  useEffect(() => {
+    if (!crawlOpen) return;
+    setCrawlUrl(company?.website_url || '');
+  }, [crawlOpen, company]);
+
+  useEffect(() => {
+    if (!companyId || !crawlJobId || crawlState !== 'running') return;
+
+    const interval = window.setInterval(async () => {
+      try {
+        const job = await companyApi.getCrawlStatus(companyId, crawlJobId);
+        setPagesProcessed(job.pages_processed);
+        setSectionsSaved(job.sections_saved);
+
+        if (job.status === 'completed') {
+          setCrawlState('success');
+          window.clearInterval(interval);
+          window.setTimeout(() => onNavigate('/content-studio'), 1400);
+        } else if (job.status === 'failed') {
+          setCrawlState('failed');
+          setCrawlError('Website crawling could not be completed. Please verify the URL and try again.');
+          window.clearInterval(interval);
+        }
+      } catch {
+        // Keep the live progress view active if one status request is temporarily unavailable.
+      }
+    }, 2000);
+
+    return () => window.clearInterval(interval);
+  }, [companyId, crawlJobId, crawlState, onNavigate]);
+
+  const startCrawl = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!companyId || !crawlUrl.trim()) return;
+
+    setCrawlError(null);
+    setCrawlState('running');
+    setPagesProcessed(0);
+    setSectionsSaved(0);
+
+    try {
+      if (!company?.website_url) {
+        await companyApi.updateCompany(companyId, { website_url: crawlUrl.trim() });
+      }
+      const job = await companyApi.startCrawl(companyId, crawlUrl.trim());
+      setCrawlJobId(job.job_id);
+    } catch (error: any) {
+      setCrawlState('failed');
+      setCrawlError(error?.message || 'Could not start website crawling.');
+    }
+  };
+
   const displayName = company?.company_name || authCompanyName || 'Your Organization';
-  const cleanWebsiteUrl = company?.website_url
-    ? company.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
-    : null;
+  const progress = crawlState === 'success'
+    ? 100
+    : Math.min(88, 18 + pagesProcessed * 7 + sectionsSaved * 3);
 
   return (
-    <div className="space-y-8 font-sans">
-      {/* =========================================================================
-          PAGE HEADER: 28px/600 title, 14px/400 body, shared 32px padding grid
-          Soft Graphite Palette: #252525 text, #737373 secondary
-          ========================================================================= */}
-      <div className="pb-6 border-b border-[#E7E5E4]">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-semibold text-[#252525] tracking-tight leading-tight">
-              Overview
+    <div className="space-y-7 pb-10">
+      <section className="relative min-h-[390px] overflow-hidden rounded-[28px] bg-[#087fd7] text-white">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#087bd4_0%,#159adf_55%,#75c3e6_100%)]" />
+        <div className="absolute right-[-80px] top-[-100px] h-[300px] w-[300px] rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute bottom-[-100px] left-[35%] h-[230px] w-[380px] rounded-[100%] bg-white/10 blur-xl" />
+
+        <div className="relative z-10 flex min-h-[390px] flex-col justify-between px-6 py-7 sm:px-9 lg:flex-row lg:items-center lg:px-12">
+          <div className="max-w-[560px]">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-[#dfff75]" />
+              Marketing Agent
+            </div>
+            <h1 className="text-balance text-[42px] font-medium leading-[1.02] tracking-[-0.055em] sm:text-[58px]">
+              Your AI Marketing Agent <span className="text-[#dfff75]">Is Ready.</span>
             </h1>
-            <p className="text-[14px] text-[#737373] mt-2 max-w-2xl leading-relaxed">
-              Your central workspace where autonomous AI agents write authentic marketing and qualify new sales opportunities using your company's real expertise.
+            <p className="mt-5 max-w-[520px] text-pretty text-sm leading-6 text-white/78 sm:text-base">
+              Turn your company knowledge into authentic marketing content. Let AI research your brand and create content that connects.
             </p>
+            <button
+              type="button"
+              onClick={() => onNavigate('/crawl')}
+              className="lime-button mt-7 inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-[#172300]"
+            >
+              Start Website Crawling <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
 
-          {/* Understated Company Context Pill */}
-          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-[#FFFFFF] border border-[#E7E5E4] text-[13px] transition-colors shrink-0">
-            <Building2 className="w-4 h-4 text-[#737373] shrink-0" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-[#252525] block truncate max-w-[160px]">
-                  {displayName}
-                </span>
-                <button
-                  onClick={() => onNavigate('/settings')}
-                  title="Configure in Settings"
-                  className="btn-motion text-[#737373] hover:text-[#252525] p-0.5 rounded cursor-pointer"
-                >
-                  <Sliders className="w-3 h-3" />
-                </button>
-              </div>
-              <span className="text-[#737373] text-[12px] block truncate max-w-[150px]">
-                {cleanWebsiteUrl || 'Domain not set'}
-              </span>
+          <div className="relative mt-10 h-[210px] w-full max-w-[390px] self-end lg:mt-0">
+            <div className="float-card absolute right-0 top-0 w-[190px] rounded-[18px] bg-white p-4 text-[#111827]">
+              <div className="flex items-center justify-between"><p className="text-xs font-bold">Campaign growth</p><BarChart3 className="h-4 w-4 text-[#1688d2]" /></div>
+              <p className="mt-5 text-3xl font-bold">+42%</p>
+              <div className="mt-4 flex h-10 items-end gap-1">{[35,48,42,68,58,82,74].map((h,i)=><div key={i} className="flex-1 rounded-t bg-[#1688d2]" style={{height:`${h}%`,opacity:.4+i*.07}} />)}</div>
+            </div>
+            <div className="float-card float-mid absolute bottom-0 left-0 w-[210px] rounded-[18px] border border-white/70 bg-[#101827]/95 p-4 text-white">
+              <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#dfff75] text-[#172300]"><Sparkles className="h-4 w-4" /></div><div><p className="text-[10px] text-white/55">AI STATUS</p><p className="text-sm font-semibold">Ready to create</p></div></div>
+              <div className="mt-4 h-1.5 rounded-full bg-white/10"><div className="h-full w-4/5 rounded-full bg-[#dfff75]" /></div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* =========================================================================
-          TWO WORKSPACE ENTRIES: Marketing Agent & Lead Qualification Agent
-          Soft Graphite Palette: #FFFFFF surface, #E7E5E4 border, #252525 button
-          32px grid gap, equal heights, 24px internal card padding
-          ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-
-        {/* =========================================================================
-            ENTRY 1: Marketing Agent
-            ========================================================================= */}
-        <div className="card-motion h-full flex flex-col justify-between bg-[#FFFFFF] rounded-2xl border border-[#E7E5E4] p-7 shadow-xs hover:border-[#252525]/30 hover:shadow-md transition-all">
-          <div className="space-y-4">
-            {/* Header: Title & Status */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#252525] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-[17px] font-semibold text-[#252525] leading-snug">
-                    Marketing Agent
-                  </h2>
-                  <p className="text-[12px] text-[#737373] leading-normal mt-0.5">
-                    Authentic Content & Brand Voice
-                  </p>
-                </div>
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#FAFAF9] text-[#252525] border border-[#E7E5E4] shrink-0">
-                <span className={`w-1.5 h-1.5 rounded-full ${backendReady ? 'bg-emerald-600 animate-pulse' : 'bg-[#737373]'}`} />
-                <span>{backendReady ? 'Active' : 'Connecting'}</span>
-              </div>
+      <section className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
+        <article className="rounded-[24px] border border-[#dfeaf2] bg-white p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#087fd7] text-white"><Sparkles className="h-5 w-5" /></div>
+              <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1688d2]">Marketing Agent</p><h2 className="mt-1 text-xl font-semibold">Create grounded campaigns</h2></div>
             </div>
-
-            {/* Core Agent Motto Callout */}
-            <div className="p-3.5 rounded-xl bg-[#FAFAF9] border border-[#E7E5E4] text-xs space-y-1">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#737373] block">
-                Agent Motto
-              </span>
-              <p className="font-semibold text-[#252525] text-[13px] leading-snug">
-                "Turn your real company expertise into high-impact content — with zero made-up claims."
-              </p>
-            </div>
-
-            {/* Clear Natural Description */}
-            <p className="text-[13px] text-[#737373] leading-relaxed">
-              Reads your website and verified company knowledge to draft engaging social posts, in-depth articles, branded visual graphics, and 60-second video reels. Every word sounds like your leadership team and stays 100% faithful to what your business actually delivers.
-            </p>
-
-            <div className="h-px bg-[#E7E5E4]" />
-
-            {/* What this Agent Delivers (Clean Words) */}
-            <div className="space-y-2.5">
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-[#252525] block">
-                What This Agent Does For You:
-              </span>
-
-              <ul className="space-y-2 text-[13px] text-[#252525]">
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">100% Fact-Checked:</strong> Only writes about services, technologies, and achievements your company actually delivers — never invented claims.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">Ready for LinkedIn & Instagram:</strong> Generates platform-tuned posts with custom hooks, descriptions, hashtags, graphic banners, and video reels.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">Always Under Your Control:</strong> Saves drafts directly to your review queue so your team can inspect, edit, and approve before anything goes live.
-                  </span>
-                </li>
-              </ul>
-            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf8ff] px-2.5 py-1 text-xs font-medium text-[#1688d2]"><span className="h-1.5 w-1.5 rounded-full bg-[#1688d2]" />Active</span>
           </div>
+          <p className="mt-5 max-w-[620px] text-sm leading-6 text-[#697386]">Transform verified company knowledge into platform-ready LinkedIn and Instagram posts, complete with captions and AI visuals.</p>
+          <button type="button" onClick={() => onNavigate('/content-studio')} className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#087fd7] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#076db8]">Generate a Post <ArrowRight className="h-4 w-4" /></button>
+        </article>
 
-          {/* Action Row */}
-          <div className="pt-6 mt-6 border-t border-[#E7E5E4] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <button
-              onClick={() => onNavigate('/marketing')}
-              className="btn-motion inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#252525] hover:bg-[#383838] text-white text-[13px] font-semibold shadow-xs cursor-pointer group"
-            >
-              <span>Open Marketing Agent</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-150" />
-            </button>
+        <article className="rounded-[24px] border border-[#dfeaf2] bg-[#f5faff] p-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#dfff75] text-[#172300]"><UserCheck className="h-5 w-5" /></div>
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-[#697386]">Lead Agent</p>
+          <h2 className="mt-2 text-xl font-semibold">Focus on real buyers</h2>
+          <button type="button" onClick={() => onNavigate('/leads')} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#1688d2]">Open Leads <ArrowRight className="h-4 w-4" /></button>
+        </article>
+      </section>
 
-            <button
-              onClick={() => onNavigate('/content-studio')}
-              className="btn-motion inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-[13px] font-semibold text-[#252525] bg-white border border-[#E7E5E4] hover:bg-[#F5F5F4] hover:border-[#D6D3D1] transition-all cursor-pointer group"
-            >
-              <span>Launch Content Studio</span>
-              <ArrowRight className="w-3 h-3 text-[#737373] group-hover:translate-x-0.5 transition-transform duration-150" />
-            </button>
+      {crawlOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#071827]/45 p-4 backdrop-blur-sm">
+          <div className="relative max-h-[92vh] w-full max-w-[900px] overflow-y-auto rounded-[28px] border border-white/50 bg-white shadow-[0_30px_80px_rgba(7,54,95,.28)]">
+            {crawlState === 'idle' && (
+              <form onSubmit={startCrawl} className="p-6 sm:p-8">
+                <div className="flex items-start justify-between gap-4">
+                  <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Website setup</p><h2 className="mt-2 text-3xl font-medium tracking-[-0.04em]">Start with your website</h2></div>
+                  <button type="button" onClick={() => setCrawlOpen(false)} className="rounded-full border border-[#dfe7ee] p-2 text-[#697386] hover:bg-[#f5faff]"><X className="h-5 w-5" /></button>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-[#697386]">Nexora will securely crawl and index your public pages for grounded AI marketing.</p>
+                <label className="mt-7 block text-sm font-bold">Company website URL</label>
+                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#dfe7ee] px-4 focus-within:border-[#1688d2] focus-within:ring-2 focus-within:ring-[#1688d2]/10">
+                  <Globe2 className="h-5 w-5 text-[#1688d2]" />
+                  <input type="url" required value={crawlUrl} onChange={(e)=>setCrawlUrl(e.target.value)} placeholder="https://yourcompany.com" className="min-h-14 w-full bg-transparent text-sm outline-none" />
+                </div>
+                {crawlError && <p className="mt-3 text-sm text-red-600">{crawlError}</p>}
+                <button type="submit" className="lime-button mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-[#172300]"><Search className="h-4 w-4" /> Start Website Crawl</button>
+              </form>
+            )}
+
+            {crawlState === 'running' && (
+              <div className="p-6 sm:p-8">
+                <div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Active ingestion pipeline</p><h2 className="mt-2 text-3xl font-medium tracking-[-0.04em]">Crawling your website</h2></div><Loader2 className="h-7 w-7 animate-spin text-[#1688d2]" /></div>
+                <div className="mt-6 rounded-2xl border border-[#dfeaf2] bg-[#f7fbfd] p-5">
+                  <div className="flex items-center justify-between text-sm"><span className="font-semibold">{crawlUrl}</span><span className="font-bold text-[#1688d2]">{progress}%</span></div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dfeaf2]"><div className="h-full rounded-full bg-[#1688d2] transition-all duration-700" style={{width:`${progress}%`}} /></div>
+                  <div className="mt-3 flex gap-5 text-xs text-[#697386]"><span>{pagesProcessed} pages processed</span><span>{sectionsSaved} sections saved</span></div>
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  {[
+                    ['Crawling','Sitemap & seeds'],
+                    ['Inspecting','DOM & status'],
+                    ['Extracting','Clean page text'],
+                    ['Cleaning','Boilerplate filter'],
+                    ['Classifying','16 categories'],
+                    ['Saving','pgvector index'],
+                  ].map(([title,detail],index)=>{
+                    const reached = crawlState === 'running' && index <= Math.min(5,Math.floor(progress/18));
+                    return <div key={title} className={`rounded-xl border p-3 ${reached?'border-[#1688d2]/30 bg-[#edf7fd]':'border-[#e5eaef] bg-white'}`}><span className={`text-[10px] font-bold ${reached?'text-[#1688d2]':'text-[#697386]'}`}>0{index+1}. {title}</span><p className="mt-2 text-[11px] leading-4 text-[#697386]">{detail}</p></div>
+                  })}
+                </div>
+              </div>
+            )}
+
+            {crawlState === 'success' && (
+              <div className="p-10 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#dfff75] text-[#172300]"><CheckCircle2 className="h-8 w-8" /></div>
+                <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Crawl complete</p>
+                <h2 className="mt-2 text-4xl font-medium tracking-[-0.04em]">Website crawled successfully</h2>
+                <p className="mt-3 text-sm text-[#697386]">{pagesProcessed} pages processed · {sectionsSaved} sections indexed</p>
+                <p className="mt-6 text-xs font-medium text-[#697386]">Opening Generate Post...</p>
+              </div>
+            )}
+
+            {crawlState === 'failed' && (
+              <div className="p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600"><X className="h-7 w-7" /></div>
+                <h2 className="mt-5 text-2xl font-semibold">Crawl could not start</h2>
+                <p className="mt-2 text-sm text-red-600">{crawlError}</p>
+                <button type="button" onClick={()=>setCrawlState('idle')} className="lime-button mt-6 rounded-full px-6 py-3 text-sm font-bold text-[#172300]">Try Again</button>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* =========================================================================
-            ENTRY 2: Lead Qualification Agent
-            ========================================================================= */}
-        <div className="card-motion h-full flex flex-col justify-between bg-[#FFFFFF] rounded-2xl border border-[#E7E5E4] p-7 shadow-xs hover:border-[#252525]/30 hover:shadow-md transition-all">
-          <div className="space-y-4">
-            {/* Header: Title & Status */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#252525] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <UserCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-[17px] font-semibold text-[#252525] leading-snug">
-                    Lead Qualification Agent
-                  </h2>
-                  <p className="text-[12px] text-[#737373] leading-normal mt-0.5">
-                    Smart Inbound Client Matching
-                  </p>
-                </div>
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#FAFAF9] text-[#252525] border border-[#E7E5E4] shrink-0">
-                <span className={`w-1.5 h-1.5 rounded-full ${backendReady ? 'bg-emerald-600 animate-pulse' : 'bg-[#737373]'}`} />
-                <span>{backendReady ? 'Active' : 'Connecting'}</span>
-              </div>
-            </div>
-
-            {/* Core Agent Motto Callout */}
-            <div className="p-3.5 rounded-xl bg-[#FAFAF9] border border-[#E7E5E4] text-xs space-y-1">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#737373] block">
-                Agent Motto
-              </span>
-              <p className="font-semibold text-[#252525] text-[13px] leading-snug">
-                "Spot your best client opportunities instantly — so your sales team speaks only with real buyers."
-              </p>
-            </div>
-
-            {/* Clear Natural Description */}
-            <p className="text-[13px] text-[#737373] leading-relaxed">
-              Reviews incoming client inquiries the moment they arrive. It checks whether the client's project, budget, and timeline match what your company excels at, delivering an instant 0–100 fit score and strategic sales advice.
-            </p>
-
-            <div className="h-px bg-[#E7E5E4]" />
-
-            {/* What this Agent Delivers (Clean Words) */}
-            <div className="space-y-2.5">
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-[#252525] block">
-                What This Agent Does For You:
-              </span>
-
-              <ul className="space-y-2 text-[13px] text-[#252525]">
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">Instant 0–100 Fit Score:</strong> Automatically rates budget, company size, and project needs against your real company capabilities.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">Actionable Sales Call Briefs:</strong> Gives your reps clear talking points, potential risks, and recommendations before the first call.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#252525] shrink-0 mt-2" />
-                  <span className="leading-relaxed">
-                    <strong className="font-semibold text-[#252525]">Zero Wasted Time:</strong> Filters out spam and mismatches so your team spends their time closing high-value deals.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Action Row */}
-          <div className="pt-6 mt-6 border-t border-[#E7E5E4] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <button
-              onClick={() => onNavigate('/leads')}
-              className="btn-motion inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#252525] hover:bg-[#383838] text-white text-[13px] font-semibold shadow-xs cursor-pointer group"
-            >
-              <span>Open Lead Agent</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-150" />
-            </button>
-
-            <button
-              onClick={() => onNavigate('/settings')}
-              className="btn-motion inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-[13px] font-semibold text-[#252525] bg-white border border-[#E7E5E4] hover:bg-[#F5F5F4] hover:border-[#D6D3D1] transition-all cursor-pointer group"
-            >
-              <span>Manage Profile</span>
-              <ArrowRight className="w-3 h-3 text-[#737373] group-hover:translate-x-0.5 transition-transform duration-150" />
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* =========================================================================
-          WORKSPACE FOOTER: Minimal Tenant Isolation Guarantee
-          ========================================================================= */}
-      <div className="p-4 rounded-xl bg-[#FFFFFF] border border-[#E7E5E4] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[12px] text-[#737373]">
-        <div className="flex items-center gap-2.5">
-          <ShieldCheck className="w-4 h-4 text-[#252525] shrink-0" />
-          <span>
-            Tenant isolation active. All agent executions, vector embeddings, and drafts are private to your workspace.
-          </span>
-        </div>
-        <span className="text-[12px] text-[#737373] shrink-0">
-          FastAPI • PostgreSQL • pgvector • Ollama
-        </span>
-      </div>
+      )}
     </div>
   );
 };

@@ -123,6 +123,41 @@ class ContentRead(BaseModel):
     generation_type: GenerationType
     approval_status: ApprovalStatus
     created_at: datetime
+    generation_batch_id: UUID | None = None
+    image_url: str | None = None
+    caption: str | None = None
+    hashtags: str | None = None
+    scheduled_at: datetime | None = None
+    published_at: datetime | None = None
+    published_post_id: str | None = None
+    publish_status: str = "draft"
+    publish_error: str | None = None
+
+
+class WeeklyGenerationRequest(BaseModel):
+    platform: Platform = "instagram"
+    mode: Literal["automatic", "manual"] = "automatic"
+    content_type: Literal["post", "article", "image", "video"] = "post"
+    prompt: str | None = Field(default=None, max_length=1000)
+    tone: str | None = Field(default="authoritative yet accessible", max_length=50)
+    instructions: str | None = Field(default=None, max_length=2500)
+
+
+class ContentGenerationBatchRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    batch_id: UUID
+    company_id: UUID
+    platform: str
+    mode: str
+    status: str
+    prompt: str | None
+    total_requested: int
+    total_created: int
+    error_message: str | None
+    created_at: datetime
+    completed_at: datetime | None
+    posts: list[ContentRead] = Field(default_factory=list)
 
 
 class ContentListResponse(BaseModel):

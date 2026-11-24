@@ -32,17 +32,18 @@ import {
   MessageSquare,
   Square,
   StopCircle,
+  X,
 } from 'lucide-react';
-import { GeneratedGraphicBanner } from './components/GeneratedGraphicBanner';
 import { GeneratedVideoReel } from './components/GeneratedVideoReel';
 import { InstagramFieldViewer } from './components/InstagramFieldViewer';
+import { parseInstagramContent } from './components/instagramParser';
 
 interface ContentStudioPageProps {
   onNavigate?: (path: string) => void;
 }
 
 export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate }) => {
-  const { user, companyId, role } = useAuth();
+  const { user, companyId, role, companyName } = useAuth();
   const [generating, setGenerating] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +56,15 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
   const [formatType, setFormatType] = useState<'post' | 'article' | 'image' | 'video'>('post');
   const [tone, setTone] = useState('authoritative yet accessible');
   const [instructions, setInstructions] = useState('');
+  const [generationMode, setGenerationMode] = useState<'automatic' | 'manual'>('automatic');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [blueprintView, setBlueprintView] = useState<'pipeline' | 'preview'>('pipeline');
 
   // Generated Result Canvas
   const [generatedDraft, setGeneratedDraft] = useState<ContentItem | null>(null);
+  const [weeklyDrafts, setWeeklyDrafts] = useState<ContentItem[]>([]);
+  const [previewDraft, setPreviewDraft] = useState<ContentItem | null>(null);
+  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
   const [editTitle, setEditTitle] = useState('');
   const [editText, setEditText] = useState('');
   const [viewMode, setViewMode] = useState<'preview' | 'editor'>('preview');
@@ -68,18 +73,12 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
   const abortControllerRef = useRef<AbortController | null>(null);
   const isCreatorOrAdmin = role === 'admin' || role === 'user';
 
-  // Cloudflare Flux AI Image Generation State
-  const [cloudflareStatus, setCloudflareStatus] = useState<{ configured: boolean; model: string } | null>(null);
+  // Recraft image generation state
   const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
   const [generatingAiImage, setGeneratingAiImage] = useState<boolean>(false);
-  const [imageTab, setImageTab] = useState<'flux' | 'svg'>('flux');
 
-  // Load Cloudflare status and cleanup abort controller on unmount
+  // Cleanup abort controller on unmount
   useEffect(() => {
-    marketingApi.getCloudflareStatus()
-      .then((st) => setCloudflareStatus(st))
-      .catch(() => setCloudflareStatus(null));
-
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -87,37 +86,68 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
     };
   }, []);
 
-  const handleGenerateFluxImage = async (customPrompt?: string, targetContentId?: string) => {
+  useEffect(() => {
+    setWeeklyDrafts([]);
+    setGeneratedDraft(null);
+    setEditTitle('');
+    setEditText('');
+    setError(null);
+    setSuccessMsg(null);
+
+    if (!companyId) {
+      return;
+    }
+
+    let active = true;
+    marketingApi.getLatestWeeklyPlan()
+      .then((batch) => {
+        if (!active || !batch) return;
+        if (batch.status === 'failed') {
+          setError(batch.error_message || 'The latest weekly content plan failed.');
+        }
+        const [latestDraft] = batch.posts || [];
+        setWeeklyDrafts(batch.posts || []);
+        if (latestDraft) {
+          setGeneratedDraft(latestDraft);
+          setEditTitle(latestDraft.content_title);
+          setEditText(latestDraft.content_text);
+          setSuccessMsg('Loaded your latest saved weekly content plan.');
+        }
+      })
+      .catch((err: Error) => {
+        if (active) {
+          setError(err.message || 'Failed to load saved content from the backend.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [companyId]);
+
+  const handleGenerateRecraftImage = async (customPrompt?: string, targetContentId?: string) => {
     const promptToUse = customPrompt || instructions || topic || 'DataFactZ enterprise AI deterministic data intelligence platform';
     const cid = targetContentId || generatedDraft?.content_id;
     setGeneratingAiImage(true);
     setError(null);
     try {
-      const res = await marketingApi.generateCloudflareImage({
+      const res = await marketingApi.generateRecraftImage({
         prompt: promptToUse,
         topic: topic || undefined,
-        company_name: 'DataFactZ',
+        company_name: companyName || 'Nexora',
+        custom_style: platform === 'instagram' ? 'polished square social post' : 'polished landscape social post',
         content_id: cid,
+        size: platform === 'instagram' ? '1:1' : '16:9',
       });
       setAiImageUrl(res.image_url);
-      try {
-        localStorage.setItem('last_flux_image', res.image_url);
-        if (topic) localStorage.setItem(`flux_image_${topic}`, res.image_url);
-        if (cid) {
-          localStorage.setItem(`flux_image_${cid}`, res.image_url);
-        }
-        if (res.public_url) {
-          localStorage.setItem('last_flux_public_url', res.public_url);
-          if (cid) {
-            localStorage.setItem(`flux_public_url_${cid}`, res.public_url);
-          }
-        }
-      } catch {}
-      setSuccessMsg('Branding visual generated via Cloudflare Flux-1-schnell!');
+      if (cid) {
+        setGeneratedImages((previous) => ({ ...previous, [cid]: res.image_url }));
+      }
+      setSuccessMsg('Branding visual generated with Recraft V4.1 Flash V2.');
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       const msg = typeof detail === 'object' && detail?.message ? detail.message : detail || err?.message;
-      setError(msg || 'Failed to generate image with Cloudflare Workers AI.');
+      setError(msg || 'Failed to generate image with Recraft.');
     } finally {
       setGeneratingAiImage(false);
     }
@@ -143,6 +173,11 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
     abortControllerRef.current = controller;
 
     try {
+      const effectiveTopic = topic.trim();
+      if (effectiveTopic) {
+        setTopic(effectiveTopic);
+      }
+
       // Build tailored instructions based on format and target platform
       let formatInstructions = instructions || '';
       if (formatType === 'image') {
@@ -157,29 +192,42 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
         formatInstructions = `${formatInstructions} Structure LinkedIn content as a unified executive post with punchy hook, body paragraphs, core pillars, CTA, and 3-5 hashtags. No broken-out caption/description/seo fields needed.`.trim();
       }
 
-      const generated = await marketingApi.generateContent(
-        {
-          topic,
-          platform,
-          content_type: formatType,
-          tone,
-          instructions: formatInstructions || undefined,
-        },
-        { signal: controller.signal }
-      );
+      const batch = await marketingApi.generateWeeklyPlan({
+        platform,
+        mode: generationMode,
+        content_type: formatType,
+        prompt: effectiveTopic || undefined,
+        tone,
+        instructions: formatInstructions || undefined,
+      });
 
-      setGeneratedDraft(generated);
-      setEditTitle(generated.content_title);
-      setEditText(generated.content_text);
+      let latest = batch;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        if (controller.signal.aborted) break;
+        latest = await marketingApi.getWeeklyPlan(batch.batch_id);
+        if (['completed', 'partial', 'failed'].includes(latest.status)) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      }
+
+      if (latest.status === 'failed') {
+        throw new Error(latest.error_message || 'Weekly content generation failed.');
+      }
+      const generatedPosts = latest.posts || [];
+      if (generatedPosts.length === 0) {
+        throw new Error('The weekly content plan is still processing. Please wait and refresh.');
+      }
+
+      setWeeklyDrafts(generatedPosts);
+      const [firstGenerated] = generatedPosts;
+      setGeneratedDraft(firstGenerated);
+      setEditTitle(firstGenerated.content_title);
+      setEditText(firstGenerated.content_text);
       setViewMode('preview');
-      setSuccessMsg('Grounded content draft generated successfully with verified company context!');
-
-      // If format is Image, automatically generate the Cloudflare Flux promotional image for this exact draft
-      if (formatType === 'image') {
-        handleGenerateFluxImage(
-          `Photorealistic corporate technology promotional visual for ${topic || 'DataFactZ'}: futuristic digital data architecture, deterministic multi-agent platform, enterprise cloud data governance`,
-          generated.content_id
-        );
+      if (latest.status === 'partial') {
+        setError(latest.error_message || 'Some posts or images could not be generated.');
+        setSuccessMsg(`${generatedPosts.length} post drafts generated; review the image-generation warning.`);
+      } else {
+        setSuccessMsg(`${generatedPosts.length} grounded post drafts generated successfully with verified company context!`);
       }
 
       // Smooth scroll to draft
@@ -207,9 +255,36 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
         content_text: editText,
       });
       setGeneratedDraft(updated);
+      setWeeklyDrafts((drafts) =>
+        drafts.map((draft) => draft.content_id === updated.content_id ? updated : draft)
+      );
       setSuccessMsg('Draft edits saved successfully.');
     } catch (err: any) {
       setError(err?.message || 'Failed to save edits');
+    }
+  };
+
+  const handleSubmitWeeklyPlan = async () => {
+    if (!weeklyDrafts.length || !isCreatorOrAdmin) return;
+    setSubmitting(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updatedPosts: ContentItem[] = [];
+      for (const draft of weeklyDrafts) {
+        if (draft.approval_status === 'draft' || draft.approval_status === 'rejected') {
+          updatedPosts.push(await marketingApi.submitContent(draft.content_id));
+        } else {
+          updatedPosts.push(draft);
+        }
+      }
+      setWeeklyDrafts(updatedPosts);
+      setGeneratedDraft(updatedPosts[0] || generatedDraft);
+      setSuccessMsg('Your weekly content plan has been submitted for CEO/admin review. Publishing remains locked until approval.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit the weekly content plan for review');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -366,19 +441,19 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="studio-theme max-w-6xl mx-auto space-y-8 pb-16">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E7E5E4]">
+      <div className="workspace-header px-5 py-5 sm:px-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-semibold text-[#252525] tracking-tight flex items-center gap-2.5">
-            <span>Content Studio</span>
+          <h1 className="text-2xl sm:text-[28px] font-semibold text-[#252525] tracking-tight flex flex-wrap items-center gap-x-2.5 gap-y-2">
+            <span>Create Your Weekly Content.</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               pgvector Grounded
             </span>
           </h1>
           <p className="text-sm text-[#737373] mt-1">
-            Generate company-grounded marketing assets strictly verified against your company knowledge base.
+            Plan, generate, review, and schedule your social media content with your AI Marketing Agent.
           </p>
         </div>
 
@@ -414,6 +489,141 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                 Open Review Queue &rarr;
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {previewDraft && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#071827]/55 p-4 backdrop-blur-md" onClick={() => setPreviewDraft(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative max-h-[92vh] w-full max-w-[920px] overflow-y-auto rounded-[26px] border border-white/50 bg-white shadow-[0_30px_90px_rgba(7,54,95,.35)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const parsed = parseInstagramContent(previewDraft.content_text, previewDraft.content_title);
+              const imageUrl = generatedImages[previewDraft.content_id] || previewDraft.image_url || null;
+              return (
+                <div className="grid md:grid-cols-[1fr_1fr]">
+                  <div className="bg-[#edf7fd] p-5 sm:p-7">
+                    <div className="mb-4 flex items-center justify-between">
+                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#1688d2]">Post Preview</span>
+                      <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-full border border-[#dfe7ee] bg-white p-2 text-[#697386]"><X className="h-4 w-4" /></button>
+                    </div>
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={previewDraft.content_title}
+                        className={`mx-auto w-full rounded-2xl border border-white object-cover shadow-lg ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] aspect-[4/5]' : 'aspect-[1200/627]'}`}
+                      />
+                    ) : (
+                      <div className={`mx-auto flex w-full flex-col justify-end rounded-2xl bg-[linear-gradient(145deg,#087bd4,#63b9e1)] p-6 text-white shadow-lg ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] aspect-[4/5]' : 'aspect-[1200/627]'}`}>
+                        <Sparkles className="mb-auto h-6 w-6 text-[#dfff75]" />
+                        <p className="text-xl font-bold leading-tight">{previewDraft.content_title}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-h-[420px] flex-col p-5 sm:p-7">
+                    <div className="border-b border-[#edf1f4] pb-4">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1688d2]">{previewDraft.platform_target}</p>
+                      <h3 className="mt-2 text-xl font-semibold leading-tight text-[#252525]">{previewDraft.content_title}</h3>
+                      {previewDraft.scheduled_at && (
+                        <p className="mt-2 text-xs font-medium text-[#697386]">
+                          Scheduled: {new Date(previewDraft.scheduled_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto py-5">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#697386]">Caption</p>
+                      <p className="mt-2 text-sm leading-7 text-[#252525]">{parsed.caption}</p>
+                      {parsed.description && (
+                        <p className="mt-3 text-sm leading-7 text-[#697386]">{parsed.description}</p>
+                      )}
+                    </div>
+                    <div className="border-t border-[#edf1f4] pt-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#697386]">Hashtags</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {parsed.hashtags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-[#edf7fd] px-3 py-1.5 text-xs font-medium text-[#1688d2]">{tag}</span>
+                        ))}
+                      </div>
+                      <div className="mt-5 flex items-center justify-between gap-3">
+                        <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-full border border-[#dfe7ee] px-4 py-2.5 text-xs font-bold text-[#697386]">Close</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleSubmitWeeklyPlan();
+                            setPreviewDraft(null);
+                          }}
+                          className="lime-button inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-[#172300]"
+                        >
+                          Submit for Review <Send className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {weeklyDrafts.length > 0 && (
+        <div className="rounded-[24px] border border-[#dfeaf2] bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 border-b border-[#e7edf2] pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1688d2]">Weekly content plan</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight">Five focused posts</h2>
+              <p className="mt-1 text-xs text-[#697386]">Five scheduled posting dates assigned by the backend.</p>
+            </div>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleSubmitWeeklyPlan}
+              className="lime-button inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold text-[#172300] disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {submitting ? 'Submitting...' : 'Submit Weekly Plan for Review'}
+            </button>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {weeklyDrafts.map((draft, index) => (
+              (() => {
+                const parsed = parseInstagramContent(draft.content_text, draft.content_title);
+                const imageUrl = generatedImages[draft.content_id] || draft.image_url || null;
+                return (
+                  <button
+                    type="button"
+                    key={draft.content_id}
+                    onClick={() => setPreviewDraft(draft)}
+                    className={`rounded-[18px] border p-3 text-left transition ${generatedDraft?.content_id === draft.content_id ? 'border-[#1688d2] bg-[#edf7fd] shadow-sm' : 'border-[#e2e9ef] bg-white hover:-translate-y-1 hover:border-[#1688d2]/50 hover:shadow-md'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#697386]">Post {index + 1}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold capitalize ${draft.approval_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : draft.approval_status === 'pending' ? 'bg-amber-100 text-amber-700' : draft.approval_status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-[#e7edf2] text-[#697386]'}`}>{draft.approval_status}</span>
+                    </div>
+                    <div className="mt-3 overflow-hidden rounded-xl border border-[#dfe7ee] bg-[#eef7fd]">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={draft.content_title} className={`w-full object-cover ${platform === 'instagram' ? 'aspect-[4/5]' : 'aspect-[1200/627]'}`} />
+                      ) : (
+                        <div className={`w-full bg-[linear-gradient(145deg,#087bd4,#63b9e1)] p-4 text-white ${platform === 'instagram' ? 'aspect-[4/5]' : 'aspect-[1200/627]'}`}>
+                          <Sparkles className="h-4 w-4 text-[#dfff75]" />
+                          <p className="mt-[55%] line-clamp-3 text-sm font-bold leading-5">{draft.content_title}</p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-[#252525]">{draft.content_title}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#697386]">{parsed.caption}</p>
+                    <div className="mt-2 flex items-center justify-between border-t border-[#edf1f4] pt-2 text-[10px] text-[#697386]">
+                      <span>{platform === 'instagram' ? '1080 × 1350' : '1200 × 627'}</span>
+                      <span>{draft.scheduled_at ? new Date(draft.scheduled_at).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'No schedule'}</span>
+                    </div>
+                  </button>
+                );
+              })()
+            ))}
           </div>
         </div>
       )}
@@ -459,17 +669,36 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
         {isCreatorOrAdmin ? (
           <form onSubmit={handleGenerateAI} className="space-y-6">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#dfeaf2] bg-[#f7fbfd] p-1.5">
+              <button
+                type="button"
+                onClick={() => setGenerationMode('automatic')}
+                className={`rounded-xl px-4 py-3 text-left transition ${generationMode === 'automatic' ? 'bg-[#087fd7] text-white shadow-sm' : 'text-[#697386] hover:bg-white'}`}
+              >
+                <span className="block text-sm font-bold">Generate Automatically</span>
+                <span className={`mt-1 block text-[11px] ${generationMode === 'automatic' ? 'text-white/75' : 'text-[#697386]'}`}>Create five posts from your stored company knowledge</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerationMode('manual')}
+                className={`rounded-xl px-4 py-3 text-left transition ${generationMode === 'manual' ? 'bg-[#087fd7] text-white shadow-sm' : 'text-[#697386] hover:bg-white'}`}
+              >
+                <span className="block text-sm font-bold">Create with Your Prompt</span>
+                <span className={`mt-1 block text-[11px] ${generationMode === 'manual' ? 'text-white/75' : 'text-[#697386]'}`}>Describe your campaign or content idea</span>
+              </button>
+            </div>
+
             {/* Topic Input */}
             <div className="space-y-2">
               <label className="block text-[13px] font-medium text-[#252525]">
-                Content Topic or Goal *
+                {generationMode === 'automatic' ? 'Content Topic or Goal (Optional)' : 'Content Topic or Goal *'}
               </label>
               <textarea
                 rows={3}
-                required
+                required={generationMode === 'manual'}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g. DataFactZ Industry Solutions across Insurance, Banking, and Manufacturing"
+                placeholder={generationMode === 'automatic' ? `Optional: add a focus for ${companyName || 'your company'}'s next post` : 'Describe the exact post you want to generate'}
                 className="w-full px-4 py-3 text-sm rounded-xl border border-[#E7E5E4] bg-white text-[#252525] placeholder:text-[#737373]/60 focus:outline-none focus:border-[#252525] focus:ring-2 focus:ring-[#252525]/5 transition-all leading-relaxed shadow-xs"
               />
             </div>
@@ -479,7 +708,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
               <label className="block text-[13px] font-medium text-[#252525]">
                 Select Content Format *
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {formatOptions.map((opt) => {
                   const Icon = opt.icon;
                   const isSelected = formatType === opt.id;
@@ -488,24 +717,24 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                       key={opt.id}
                       type="button"
                       onClick={() => setFormatType(opt.id as any)}
-                      className={`card-motion p-3.5 rounded-xl border text-left flex flex-col justify-between gap-3 cursor-pointer ${isSelected
+                      className={`card-motion min-h-[132px] p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between gap-4 cursor-pointer ${isSelected
                         ? 'bg-[#252525] text-white border-[#252525] shadow-md -translate-y-1 ring-2 ring-[#252525]/15'
                         : 'bg-white text-[#252525] border-[#E7E5E4] hover:border-[#252525]/40 hover:bg-[#FAFAF9]'
                         }`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-white/15 text-white' : 'bg-[#F0EFED] text-[#252525]'
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-white/15 text-white' : 'bg-[#F0EFED] text-[#252525]'
                             }`}
                         >
-                          <Icon className="w-3.5 h-3.5" />
+                          <Icon className="w-4 h-4" />
                         </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                        {isSelected && <Check className="w-4 h-4 text-white" />}
                       </div>
                       <div>
-                        <span className="block text-xs font-semibold leading-tight">{opt.label}</span>
+                        <span className="block text-sm font-semibold leading-snug">{opt.label}</span>
                         <span
-                          className={`block text-[10px] mt-0.5 leading-tight ${isSelected ? 'text-white/70' : 'text-[#737373]'
+                          className={`block text-xs mt-1 leading-relaxed ${isSelected ? 'text-white/80' : 'text-[#737373]'
                             }`}
                         >
                           {opt.desc}
@@ -719,117 +948,117 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
                   {/* STAGE CARDS GRID FOR LINKEDIN (Unified Standard) */}
                   {platform === 'linkedin' && formatType !== 'article' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                       {/* Step 1: Executive Hook */}
-                      <div className="card-motion p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-2.5 transition-all duration-200 shadow-2xs group">
+                      <div className="card-motion min-w-0 p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-4 transition-all duration-200 shadow-2xs group">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="min-w-0 font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
                               <Sparkles className="w-3.5 h-3.5 text-[#252525]" />
                               <span>1. Executive Hook</span>
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           </div>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-1.5">
+                          <span className="inline-block px-2 py-1 rounded-md text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-2">
                             Scroll-Stop / 1-2 Lines
                           </span>
-                          <p className="text-[#737373] text-[11px] leading-relaxed">
+                          <p className="text-[#737373] text-xs leading-relaxed">
                             High-impact mobile opener placed before the "see more" cutoff to capture immediate executive attention.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                           <span>Target: &lt;140 Chars</span>
                           <span className="text-[#252525] font-semibold">Stage 1</span>
                         </div>
                       </div>
 
                       {/* Step 2: Strategic Reality */}
-                      <div className="card-motion p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-2.5 transition-all duration-200 shadow-2xs group">
+                      <div className="card-motion min-w-0 p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-4 transition-all duration-200 shadow-2xs group">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="min-w-0 font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
                               <Layers className="w-3.5 h-3.5 text-[#252525]" />
                               <span>2. Strategic Reality</span>
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           </div>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-1.5">
+                          <span className="inline-block px-2 py-1 rounded-md text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-2">
                             Context & Shift
                           </span>
-                          <p className="text-[#737373] text-[11px] leading-relaxed">
+                          <p className="text-[#737373] text-xs leading-relaxed">
                             Frames the transition from fragile one-off AI scripts to production-grade, deterministic architecture.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                           <span>2-3 Clean Paragraphs</span>
                           <span className="text-[#252525] font-semibold">Stage 2</span>
                         </div>
                       </div>
 
                       {/* Step 3: Solution Pillars */}
-                      <div className="card-motion p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-2.5 transition-all duration-200 shadow-2xs group">
+                      <div className="card-motion min-w-0 p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-4 transition-all duration-200 shadow-2xs group">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="min-w-0 font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
                               <Database className="w-3.5 h-3.5 text-emerald-600" />
                               <span>3. Solution Pillars</span>
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           </div>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-1.5">
+                          <span className="inline-block px-2 py-1 rounded-md text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-2">
                             pgvector Grounded
                           </span>
-                          <p className="text-[#737373] text-[11px] leading-relaxed">
+                          <p className="text-[#737373] text-xs leading-relaxed">
                             Governed data pipelines, semantic embeddings, and contract-driven LangGraph multi-agent nodes.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                           <span>3 Verified Bullets</span>
                           <span className="text-[#252525] font-semibold">Stage 3</span>
                         </div>
                       </div>
 
                       {/* Step 4: Business Impact */}
-                      <div className="card-motion p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-2.5 transition-all duration-200 shadow-2xs group">
+                      <div className="card-motion min-w-0 p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-4 transition-all duration-200 shadow-2xs group">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="min-w-0 font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
                               <TrendingUp className="w-3.5 h-3.5 text-[#252525]" />
                               <span>4. Business Impact</span>
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           </div>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-1.5">
+                          <span className="inline-block px-2 py-1 rounded-md text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-2">
                             Outcome Delivery
                           </span>
-                          <p className="text-[#737373] text-[11px] leading-relaxed">
+                          <p className="text-[#737373] text-xs leading-relaxed">
                             Quantified efficiency gains, eliminated transcription backlogs, and auditable governance trails.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                           <span>Zero Hallucinations</span>
                           <span className="text-[#252525] font-semibold">Stage 4</span>
                         </div>
                       </div>
 
                       {/* Step 5: Takeaway & CTA */}
-                      <div className="card-motion p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-2.5 transition-all duration-200 shadow-2xs group">
+                      <div className="card-motion min-w-0 p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] hover:bg-white hover:border-[#252525]/40 text-xs flex flex-col justify-between gap-4 transition-all duration-200 shadow-2xs group">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="min-w-0 font-semibold text-[#252525] group-hover:text-black flex items-center gap-1.5">
                               <MessageSquare className="w-3.5 h-3.5 text-[#252525]" />
                               <span>5. Discussion CTA</span>
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           </div>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-1.5">
+                          <span className="inline-block px-2 py-1 rounded-md text-[10px] font-mono bg-white border border-[#E7E5E4] text-[#737373] mb-2">
                             Conversation Driver
                           </span>
-                          <p className="text-[#737373] text-[11px] leading-relaxed">
+                          <p className="text-[#737373] text-xs leading-relaxed">
                             Strategic closing takeaway inviting collaborative discussions, pilot inquiries, and community engagement.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E7E5E4]/60 text-[10px] text-[#737373] font-mono flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                           <span>+ 3-5 Industry Tags</span>
                           <span className="text-[#252525] font-semibold">Stage 5</span>
                         </div>
@@ -1033,14 +1262,14 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                       <div className="flex items-center justify-between">
                         <span className="font-semibold flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                          <span>AI Branding & Promotion Engine: Cloudflare Flux-1-schnell</span>
+                          <span>AI Branding & Promotion Engine: Recraft V4.1 Flash V2</span>
                         </span>
                         <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
                           Cloudflare Workers AI Active
                         </span>
                       </div>
                       <p className="text-[11px] text-amber-800 leading-relaxed">
-                        Generates photorealistic promotional branding visuals using Black Forest Labs Flux-1-schnell on Cloudflare AI edge.
+                        Generates promotional branding visuals with Recraft V4.1 Flash V2.
                       </p>
                     </div>
                   )}
@@ -1150,7 +1379,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
                 <button
                   type="submit"
-                  disabled={generating || !topic.trim()}
+                  disabled={generating || (generationMode === 'manual' && !topic.trim())}
                   className="btn-motion w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 px-7 rounded-xl bg-[#252525] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:bg-[#383838] disabled:opacity-50 disabled:pointer-events-none cursor-pointer group"
                 >
                   {generating ? (
@@ -1372,136 +1601,49 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
             {viewMode === 'preview' ? (
               <div className="space-y-6">
-                {/* 1. VISUAL ASSET RENDERING (If image creative selected) */}
+                {/* Recraft V4.1 Flash V2 image generation */}
                 {generatedDraft.content_type === 'image' && (
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E5E4]">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-[#252525]">Visual Format:</span>
-                        <div className="flex items-center bg-white border border-[#E7E5E4] rounded-lg p-0.5 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={() => setImageTab('flux')}
-                            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                              imageTab === 'flux'
-                                ? 'bg-[#252525] text-white shadow-xs'
-                                : 'text-[#737373] hover:text-[#252525]'
-                            }`}
-                          >
-                            <Sparkles className="w-3 h-3 text-amber-400" />
-                            <span>Flux AI Visual (Cloudflare)</span>
-                          </button>
-                          {generatedDraft.platform_target !== 'instagram' && (
-                            <button
-                              type="button"
-                              onClick={() => setImageTab('svg')}
-                              className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                                imageTab === 'svg'
-                                  ? 'bg-[#252525] text-white shadow-xs'
-                                  : 'text-[#737373] hover:text-[#252525]'
-                              }`}
-                            >
-                              <Layers className="w-3 h-3" />
-                              <span>Corporate Blueprint</span>
-                            </button>
-                          )}
-                        </div>
+                  <div className="space-y-4 rounded-2xl border border-[#E7E5E4] bg-white p-5 shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#252525]">Recraft V4.1 Flash V2</h3>
+                        <p className="mt-1 text-xs text-[#737373]">Generate and save a raster image for this content.</p>
                       </div>
-
-                      {imageTab === 'flux' && (
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateFluxImage()}
-                          disabled={generatingAiImage}
-                          className="btn-motion inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#252525] hover:bg-[#383838] text-white text-xs font-semibold cursor-pointer shadow-xs disabled:opacity-50"
-                        >
-                          {generatingAiImage ? (
-                            <>
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                              <span>Generating with Flux...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-3 h-3 text-amber-300" />
-                              <span>{aiImageUrl ? 'Regenerate Flux Image' : 'Generate Flux Image'}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    {imageTab === 'flux' ? (
-                      <div className="bg-white rounded-2xl border border-[#E7E5E4] p-5 shadow-xs space-y-4">
-                        {aiImageUrl ? (
-                          <div className="space-y-3">
-                            <div className="relative rounded-xl overflow-hidden border border-[#252525]/10 shadow-sm bg-black aspect-video flex items-center justify-center">
-                              <img
-                                src={aiImageUrl}
-                                alt="Cloudflare Flux Branding Graphic"
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-mono font-semibold flex items-center gap-1.5 border border-white/20">
-                                <Sparkles className="w-3 h-3 text-amber-300" />
-                                <span>@cf/black-forest-labs/flux-1-schnell</span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E7E5E4] text-xs">
-                              <span className="text-[#737373] text-[11px]">
-                                Engine: <strong>Cloudflare Workers AI</strong> • Black Forest Labs Flux-1-schnell
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <a
-                                  href={aiImageUrl}
-                                  download={`datafactz-brand-flux-${Date.now()}.jpg`}
-                                  className="btn-motion inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAFAF9] hover:bg-[#F0EFED] border border-[#E7E5E4] text-[#252525] text-xs font-semibold cursor-pointer"
-                                >
-                                  <span>Download JPEG</span>
-                                </a>
-                              </div>
-                            </div>
-                          </div>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateRecraftImage()}
+                        disabled={generatingAiImage}
+                        className="btn-motion inline-flex items-center gap-2 rounded-xl bg-[#252525] px-4 py-2 text-xs font-semibold text-white shadow-xs disabled:opacity-50"
+                      >
+                        {generatingAiImage ? (
+                          <><RefreshCw className="h-3.5 w-3.5 animate-spin" /><span>Generating...</span></>
                         ) : (
-                          <div className="py-12 text-center space-y-3 border-2 border-dashed border-[#E7E5E4] rounded-xl bg-[#FAFAF9]/60">
-                            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
-                              <Sparkles className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-[#252525]">
-                                Generate Photorealistic Promotional Visual
-                              </h4>
-                              <p className="text-xs text-[#737373] max-w-md mx-auto mt-1">
-                                Click below to generate an AI marketing visual using Cloudflare Workers AI and Flux-1-schnell, tuned for corporate promotion.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleGenerateFluxImage()}
-                              disabled={generatingAiImage}
-                              className="btn-motion inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#252525] hover:bg-[#383838] text-white text-xs font-semibold cursor-pointer shadow-xs disabled:opacity-50"
-                            >
-                              {generatingAiImage ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Generating with Cloudflare Flux...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                                  <span>Generate Flux AI Image</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                          <><Sparkles className="h-3.5 w-3.5" /><span>{aiImageUrl ? 'Regenerate image' : 'Generate image'}</span></>
                         )}
+                      </button>
+                    </div>
+                    {(aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url) ? (
+                      <div className="space-y-3">
+                        <div className="aspect-video overflow-hidden rounded-xl border border-[#E7E5E4] bg-[#FAFAF9]">
+                          <img
+                            src={aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url || ''}
+                            alt="Recraft generated marketing image"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                        <a
+                          href={aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url || ''}
+                          download={`recraft-${generatedDraft.content_id.slice(0, 8)}.png`}
+                          className="inline-flex rounded-lg border border-[#E7E5E4] bg-[#FAFAF9] px-3 py-1.5 text-xs font-semibold text-[#252525]"
+                        >
+                          Download PNG
+                        </a>
                       </div>
-                    ) : generatedDraft.platform_target !== 'instagram' ? (
-                      <GeneratedGraphicBanner
-                        title={editTitle}
-                        topic={generatedDraft.topic}
-                        platform={generatedDraft.platform_target}
-                      />
-                    ) : null}
+                    ) : (
+                      <div className="rounded-xl border-2 border-dashed border-[#E7E5E4] bg-[#FAFAF9] py-10 text-center text-xs text-[#737373]">
+                        Generate an image with Recraft V4.1 Flash V2 to preview it here.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1516,13 +1658,31 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
                 {/* 3. PLATFORM-SPECIFIC COPY RENDERING */}
                 {generatedDraft.platform_target === 'instagram' ? (
-                  /* Dedicated 4-field Instagram breakdown: Caption, Description, Hashtags, SEO */
-                  <InstagramFieldViewer
-                    rawText={editText}
-                    defaultTitle={editTitle}
-                    onSave={(val) => setEditText(val)}
-                    isEditable={true}
-                  />
+                  (() => {
+                    const instagram = parseInstagramContent(editText, editTitle);
+                    return (
+                      <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+                        <div className="rounded-2xl border border-[#dfeaf2] bg-white p-5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#1688d2]">Caption</p>
+                            <button type="button" onClick={() => navigator.clipboard.writeText(instagram.caption)} className="rounded-lg border border-[#dfe7ee] p-2 text-[#697386]"><Copy className="h-3.5 w-3.5" /></button>
+                          </div>
+                          <p className="mt-4 text-sm leading-7 text-[#252525]">{instagram.caption}</p>
+                        </div>
+                        <div className="rounded-2xl border border-[#dfeaf2] bg-[#f7fbfd] p-5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#1688d2]">Hashtags</p>
+                            <button type="button" onClick={() => navigator.clipboard.writeText(instagram.hashtags.join(' '))} className="rounded-lg border border-[#dfe7ee] bg-white p-2 text-[#697386]"><Copy className="h-3.5 w-3.5" /></button>
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {instagram.hashtags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#1688d2] ring-1 ring-[#dfeaf2]">{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : (
                   /* Unified LinkedIn Executive Post / Article Reader */
                   <div className="min-h-[260px] p-6 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] space-y-2">

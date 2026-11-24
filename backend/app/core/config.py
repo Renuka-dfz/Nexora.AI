@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     IG_ACCESS_TOKEN: str = ""
     IG_USER_ID: str = ""
 
-    # Cloudflare Workers AI - Image Generation (Flux-1-schnell)
-    CLOUDFLARE_ACCOUNT_ID: str = ""
-    CLOUDFLARE_API_TOKEN: str = ""
-    CLOUDFLARE_IMAGE_MODEL: str = "@cf/black-forest-labs/flux-1-schnell"
+    # Recraft V4.1 Flash V2 image generation
+    RECRAFT_API_TOKEN: str = ""
+
+    # OpenAI API key is used by the text generation and evaluation integrations.
+    OPENAI_API_KEY: str = ""
 
     # Public Application URL (used for serving public static assets to Meta / webhooks)
     # Set to your Cloudflare Tunnel or ngrok HTTPS domain when publishing to Instagram

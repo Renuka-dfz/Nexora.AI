@@ -4,8 +4,6 @@ import {
   Compass,
   Sparkles,
   PenTool,
-  UserCheck,
-  Sliders,
   LogOut,
   Building2,
   Menu,
@@ -54,16 +52,6 @@ export const AppShell: React.FC<AppShellProps> = ({
       path: '/content-studio',
       icon: PenTool,
     },
-    {
-      name: 'Lead Agent',
-      path: '/leads',
-      icon: UserCheck,
-    },
-    {
-      name: 'Settings',
-      path: '/settings',
-      icon: Sliders,
-    },
   ];
 
   const handleNavClick = (path: string) => {
@@ -78,20 +66,20 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] text-[#252525] flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#f7fbfd,#fff)] text-[#252525] flex flex-col font-sans antialiased">
       {/* =========================================================================
           TOP HEADER: 56px height, Pure white surface (#FFFFFF) with thin border (#E7E5E4)
           Soft Graphite Palette: #252525 text, #737373 secondary
           ========================================================================= */}
-      <header className="h-14 bg-[#FFFFFF] text-[#252525] px-6 flex items-center justify-between sticky top-0 z-40 border-b border-[#E7E5E4]">
+      <header className="h-14 bg-white/95 text-[#252525] px-6 flex items-center justify-between sticky top-0 z-40 border-b border-[#dfeaf2] backdrop-blur">
         {/* Left: Brand Wordmark + Organization Context */}
         <div className="flex items-center gap-5">
           <div
             onClick={() => handleNavClick('/overview')}
             className="btn-motion flex items-center gap-2.5 cursor-pointer group"
           >
-            <div className="w-6 h-6 rounded-md bg-[#252525] flex items-center justify-center text-white font-semibold text-xs tracking-wider group-hover:bg-[#383838] transition-colors">
-              N
+            <div className="flex h-7 w-7 -rotate-6 items-center justify-center rounded-[8px] bg-[#087fd7] text-white shadow-[0_5px_14px_rgba(22,136,210,.18)]">
+              <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
             </div>
             <span className="font-semibold text-[16px] tracking-tight text-[#252525]">
               Nexora.AI
@@ -167,7 +155,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           ========================================================================= */}
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Desktop Sidebar: 240px wide, 40px item height, 4px vertical gaps */}
-        <aside className="hidden md:flex md:w-60 flex-col bg-[#FAFAF9] border-r border-[#E7E5E4] shrink-0 min-h-[calc(100vh-3.5rem)]">
+        <aside className="hidden md:flex md:w-60 flex-col bg-[#f7fbfd] border-r border-[#dfeaf2] shrink-0 min-h-[calc(100vh-3.5rem)]">
           <div className="p-4 flex-1 flex flex-col justify-between">
             <div>
               <div className="px-3 pt-1 pb-2">
@@ -179,7 +167,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <nav className="space-y-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = activePath === item.path;
+                  const isActive = activePath === item.path || (item.path === '/marketing' && activePath === '/crawl');
 
                   return (
                     <button
@@ -187,13 +175,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                       onClick={() => handleNavClick(item.path)}
                       className={`btn-motion w-full h-10 flex items-center gap-3 px-3.5 rounded-lg text-left text-[13px] relative cursor-pointer group transition-colors ${
                         isActive
-                          ? 'bg-[#F0EFED] text-[#252525] font-medium'
+                          ? 'bg-[#e9f5fc] text-[#1688d2] font-semibold'
                           : 'bg-transparent text-[#737373] hover:text-[#252525] hover:bg-[#F5F5F4] font-normal'
                       }`}
                     >
                       {/* Active vertical pill indicator */}
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4.5 bg-[#252525] rounded-r animate-in fade-in duration-200" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4.5 bg-[#1688d2] rounded-r animate-in fade-in duration-200" />
                       )}
                       <Icon
                         className={`w-4 h-4 shrink-0 transition-colors ${
@@ -272,7 +260,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <nav className="space-y-1">
                   {navItems.map((item) => {
                     const Icon = item.icon;
-                    const isActive = activePath === item.path;
+                    const isActive = activePath === item.path || (item.path === '/marketing' && activePath === '/crawl');
 
                     return (
                       <button
@@ -315,7 +303,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         )}
 
         {/* Main Workspace Canvas: 32px desktop padding, max-w-[1040px] aligned grid */}
-        <main className="flex-1 bg-[#FAFAF9] overflow-y-auto">
+        <main className="flex-1 bg-[linear-gradient(135deg,#f7fbfd,#fff)] overflow-y-auto">
           <div key={activePath} className="page-transition max-w-[1040px] mx-auto p-6 sm:p-8">
             {children}
           </div>

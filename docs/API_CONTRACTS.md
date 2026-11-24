@@ -51,3 +51,17 @@ The pipeline stores discovered pages and extracted HTML/Markdown/metadata in
 `crawled_page`. Classified content sections are written to the existing company
 knowledge table and begin with pending verification. Applying the new Alembic
 migration and running Redis plus a Celery worker are required.
+
+## Marketing content
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/marketing/content/generate-weekly` | Save and queue a five-post generation batch; returns `202` |
+| `GET` | `/marketing/content/batches/latest` | Restore the latest batch for the authenticated user's company |
+| `GET` | `/marketing/content/batches/{batch_id}` | Get batch status and saved posts |
+
+Weekly generation accepts `platform`, `mode`, `content_type`, `prompt`,
+`tone`, and `instructions`. The API persists the batch in PostgreSQL and
+queues generation through Celery/Redis. The Content Studio restores the latest
+saved batch on page load. A running backend, migrated database, Redis, and a
+Celery worker are required.

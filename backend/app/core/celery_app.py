@@ -9,7 +9,10 @@ celery_app = Celery(
     "nexora",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.modules.company_knowledge.tasks"],
+    include=[
+        "app.modules.company_knowledge.tasks",
+        "app.modules.marketing.tasks",
+    ],
 )
 
 celery_app.conf.update(
@@ -20,4 +23,10 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
     result_expires=3600,
+    beat_schedule={
+        "publish-approved-scheduled-posts": {
+            "task": "marketing.publish_scheduled_posts",
+            "schedule": 60.0,
+        },
+    },
 )

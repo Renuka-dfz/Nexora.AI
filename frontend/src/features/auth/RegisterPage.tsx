@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types';
-import {
-  ArrowRight,
-  Lock,
-  Mail,
-  AlertCircle,
-  ShieldCheck,
-  CheckCircle2,
-  UserCheck,
-  Sparkles,
-  Sliders,
-} from 'lucide-react';
+import { ArrowRight, Lock, Mail, AlertCircle, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface RegisterPageProps {
   onNavigate: (path: string) => void;
@@ -29,17 +19,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
+    if (password.length < 8) return setError('Password must be at least 8 characters long');
+    if (password !== confirmPassword) return setError('Passwords do not match');
     setLoading(true);
     try {
       await register(email, password, selectedRole);
@@ -51,236 +32,84 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     }
   };
 
+  const roles: { value: UserRole; title: string; description: string }[] = [
+    { value: 'admin', title: 'Admin', description: 'Manage workspace and approvals' },
+    { value: 'reviewer', title: 'Reviewer', description: 'Review and approve content' },
+    { value: 'user', title: 'Creator', description: 'Create and submit campaigns' },
+  ];
+
+  const inputClass = 'w-full py-3 text-sm rounded-xl border border-[#dfe7ee] bg-white text-[#252525] placeholder:text-[#98a1ae] focus:outline-none focus:border-[#1688d2] focus:ring-2 focus:ring-[#1688d2]/10';
+
   return (
-    <div className="min-h-screen bg-[#FAFAF9] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Brand Header */}
-        <div
-          onClick={() => onNavigate('/login')}
-          className="flex items-center justify-center gap-2.5 cursor-pointer mb-6 group"
-        >
-          <div className="w-8 h-8 rounded bg-[#252525] flex items-center justify-center text-white font-semibold text-xs tracking-wider">
-            N
-          </div>
-          <span className="font-semibold text-xl tracking-tight text-[#252525]">
-            Nexora.AI
-          </span>
-        </div>
-
-        <h1 className="text-center text-[28px] font-semibold tracking-tight text-[#252525] leading-tight">
-          Create your account
-        </h1>
-        <p className="mt-1.5 text-center text-sm text-[#737373]">
-          Already have an account?{' '}
-          <button
-            onClick={() => onNavigate('/login')}
-            className="font-medium text-[#252525] underline hover:text-black transition-colors"
-          >
-            Sign in
+    <div className="nexora-auth min-h-screen bg-[#eef7fd] text-[#111827] lg:grid lg:grid-cols-[.92fr_1.08fr]">
+      <main className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+        <div className="w-full max-w-[460px]">
+          <button onClick={() => onNavigate('/')} className="mb-7 flex items-center gap-2">
+            <div className="flex h-9 w-9 -rotate-6 items-center justify-center rounded-[11px] bg-[#087fd7] text-white"><Sparkles className="h-4 w-4" fill="currentColor" /></div>
+            <span className="text-lg font-semibold">Nexora<span className="text-[#1688d2]">.AI</span></span>
           </button>
-        </p>
-      </div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Start growing</p>
+          <h1 className="mt-3 text-[36px] font-medium leading-tight tracking-[-0.04em]">Create your account</h1>
+          <p className="mt-2 text-sm text-[#697386]">Build your intelligent marketing workspace.</p>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xs border border-[#E7E5E4] rounded-2xl sm:px-10 space-y-5">
-          {error && (
-            <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {/* Role Selection Field */}
-            <div>
-              <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-                Register Account As *
-              </label>
-              <div className="space-y-2">
-                {/* 1. Admin */}
-                <div
-                  onClick={() => setSelectedRole('admin')}
-                  className={`card-motion p-3.5 rounded-xl border cursor-pointer flex items-start justify-between gap-3 ${
-                    selectedRole === 'admin'
-                      ? 'border-[#252525] bg-[#F0EFED] shadow-xs'
-                      : 'border-[#E7E5E4] bg-white hover:bg-[#FAFAF9]'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#252525]">Admin</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#FAFAF9] text-[#252525] border border-[#E7E5E4]">
-                        Company Owner
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#737373] leading-snug">
-                      Manages company settings, triggers web crawling, oversees team, and has final content approval.
-                    </p>
-                  </div>
-                  <div className="mt-0.5 shrink-0">
-                    <div
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                        selectedRole === 'admin'
-                          ? 'border-[#252525] bg-[#252525] text-white'
-                          : 'border-[#E7E5E4] bg-white'
-                      }`}
+          <div className="mt-7 rounded-[24px] border border-[#dfeaf2] bg-white p-5 shadow-[0_20px_55px_rgba(38,119,189,.10)] sm:p-7">
+            {error && <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-[13px] font-medium">Account role</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {roles.map((role) => (
+                    <button
+                      key={role.value}
+                      type="button"
+                      onClick={() => setSelectedRole(role.value)}
+                      className={`rounded-xl border p-2.5 text-left transition ${selectedRole === role.value ? 'border-[#1688d2] bg-[#edf7fd] shadow-[0_6px_18px_rgba(22,136,210,.08)]' : 'border-[#e1e7ec] bg-white hover:border-[#1688d2]/50'}`}
                     >
-                      {selectedRole === 'admin' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Reviewer */}
-                <div
-                  onClick={() => setSelectedRole('reviewer')}
-                  className={`card-motion p-3.5 rounded-xl border cursor-pointer flex items-start justify-between gap-3 ${
-                    selectedRole === 'reviewer'
-                      ? 'border-[#252525] bg-[#F0EFED] shadow-xs'
-                      : 'border-[#E7E5E4] bg-white hover:bg-[#FAFAF9]'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#252525]">Reviewer</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#FAFAF9] text-[#252525] border border-[#E7E5E4]">
-                        Governance
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#737373] leading-snug">
-                      Inspects and approves generated articles, posts, images, and videos; rejects with mandatory audit reasons.
-                    </p>
-                  </div>
-                  <div className="mt-0.5 shrink-0">
-                    <div
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                        selectedRole === 'reviewer'
-                          ? 'border-[#252525] bg-[#252525] text-white'
-                          : 'border-[#E7E5E4] bg-white'
-                      }`}
-                    >
-                      {selectedRole === 'reviewer' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. User (Content Creator) */}
-                <div
-                  onClick={() => setSelectedRole('user')}
-                  className={`card-motion p-3.5 rounded-xl border cursor-pointer flex items-start justify-between gap-3 ${
-                    selectedRole === 'user'
-                      ? 'border-[#252525] bg-[#F0EFED] shadow-xs'
-                      : 'border-[#E7E5E4] bg-white hover:bg-[#FAFAF9]'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#252525]">User</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#FAFAF9] text-[#252525] border border-[#E7E5E4]">
-                        Content Creator
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#737373] leading-snug">
-                      Generates grounded AI marketing content in Content Studio and submits drafts to the review queue.
-                    </p>
-                  </div>
-                  <div className="mt-0.5 shrink-0">
-                    <div
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                        selectedRole === 'user'
-                          ? 'border-[#252525] bg-[#252525] text-white'
-                          : 'border-[#E7E5E4] bg-white'
-                      }`}
-                    >
-                      {selectedRole === 'user' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
+                      <span className="block text-xs font-bold">{role.title}</span>
+                      <span className="mt-1 hidden text-[10px] leading-4 text-[#697386] sm:block">{role.description}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-                Work Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-[#737373] absolute left-3.5 top-3 pointer-events-none" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] bg-white text-[#252525] placeholder:text-[#737373]/60 focus:outline-none focus:border-[#252525] transition-colors"
-                />
+              <div>
+                <label className="mb-1.5 block text-[13px] font-medium">Work email</label>
+                <div className="relative"><Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={`${inputClass} pl-10 pr-3.5`} /></div>
               </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-                Password (min 8 chars)
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-[#737373] absolute left-3.5 top-3 pointer-events-none" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] bg-white text-[#252525] placeholder:text-[#737373]/60 focus:outline-none focus:border-[#252525] transition-colors"
-                />
+              <div>
+                <label className="mb-1.5 block text-[13px] font-medium">Password</label>
+                <div className="relative"><Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" className={`${inputClass} pl-10 pr-3.5`} /></div>
               </div>
-            </div>
-
-            {/* Confirm Password Field */}
-            <div>
-              <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-[#737373] absolute left-3.5 top-3 pointer-events-none" />
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] bg-white text-[#252525] placeholder:text-[#737373]/60 focus:outline-none focus:border-[#252525] transition-colors"
-                />
+              <div>
+                <label className="mb-1.5 block text-[13px] font-medium">Confirm password</label>
+                <div className="relative"><Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat your password" className={`${inputClass} pl-10 pr-3.5`} /></div>
               </div>
-            </div>
-
-            {/* Information Callout */}
-            <div className="p-3.5 bg-[#FAFAF9] rounded-xl border border-[#E7E5E4] flex items-start gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-[#252525] shrink-0 mt-0.5" />
-              <p className="text-xs text-[#737373] leading-relaxed">
-                After registration, you will onboard your company website to build your grounded AI knowledge base with PostgreSQL pgvector.
-              </p>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-motion w-full mt-3 inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] transition-all disabled:opacity-50 shadow-xs hover:shadow-md cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Creating account...</span>
-                </>
-              ) : (
-                <>
-                  <span>Get Started</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </form>
+              <div className="flex items-start gap-2.5 rounded-xl border border-[#dfeaf2] bg-[#f5faff] p-3">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#1688d2]" />
+                <p className="text-[11px] leading-5 text-[#697386]">Your workspace and generated campaigns remain private to your organization.</p>
+              </div>
+              <button type="submit" disabled={loading} className="lime-button flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-[#172300] disabled:opacity-50">
+                {loading ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-[#172300] border-t-transparent" />Creating account...</> : <>Get Started <ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </form>
+            <p className="mt-5 text-center text-sm text-[#697386]">Already have an account? <button onClick={() => onNavigate('/login')} className="font-bold text-[#1688d2] hover:underline">Sign in</button></p>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <aside className="relative hidden overflow-hidden bg-[#087fd7] text-white lg:flex lg:flex-col lg:justify-end lg:p-12">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#087bd4,#159adf_58%,#72c3e8)]" />
+        <div className="hero-cloud hero-cloud-one" />
+        <div className="hero-cloud hero-cloud-two" />
+        <div className="relative z-10 max-w-[560px] pb-10">
+          <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#dfff75]">One intelligent workspace</p>
+          <h2 className="text-balance text-[52px] font-medium leading-[1.03] tracking-[-0.05em]">Research. Create. Grow.</h2>
+          <div className="float-card mt-10 ml-auto w-[290px] bg-white p-5 text-[#111827]">
+            <div className="flex items-center justify-between"><span className="text-xs font-bold">Campaign performance</span><Sparkles className="h-4 w-4 text-[#1688d2]" /></div>
+            <div className="mt-5 flex items-end gap-2">{[32,48,42,68,58,84,74].map((h,i)=><div key={i} className="flex-1 rounded-t bg-[#1688d2]" style={{height:h,opacity:.4+i*.08}} />)}</div>
+            <p className="mt-4 text-3xl font-bold">3.8x</p>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };

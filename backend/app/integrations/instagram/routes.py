@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import logging
 from typing import Optional
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,10 +26,7 @@ from app.integrations.instagram.publishing import (
     execute_full_instagram_publish,
 )
 from app.integrations.instagram.schemas import InstagramPublishRequest
-
-import base64
-import os
-import re
+from app.integrations.instagram.caption import clean_instagram_caption
 
 logger = logging.getLogger(__name__)
 
@@ -35,52 +34,6 @@ router = APIRouter(
     prefix="/integrations/instagram",
     tags=["Instagram Integration"],
 )
-
-
-def clean_instagram_caption(raw_text: str) -> str:
-    """
-    Format clean Instagram post copy for actual publishing.
-    Extracts:
-    - [Caption/Hook]
-    - [Narrative Body Description]
-    - [Hashtags]
-    Strips out internal workflow directives:
-    - ### VISUAL ASSET SPECIFICATION
-    - ### SEO KEYWORDS
-    - Raw markdown header tags
-    """
-    text = (raw_text or "").strip()
-
-    # 1. Strip internal visual asset specification block
-    text = re.sub(
-        r"###\s*VISUAL\s+ASSET\s+SPECIFICATION[\s\S]*?(?=\n###|\Z)",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    ).strip()
-
-    # 2. Extract structured fields if present
-    caption_match = re.search(r"###\s*CAPTION\s*\n([\s\S]*?)(?=\n###|\Z)", text, flags=re.IGNORECASE)
-    desc_match = re.search(r"###\s*DESCRIPTION\s*\n([\s\S]*?)(?=\n###|\Z)", text, flags=re.IGNORECASE)
-    hash_match = re.search(r"###\s*HASHTAGS\s*\n([\s\S]*?)(?=\n###|\Z)", text, flags=re.IGNORECASE)
-
-    if caption_match or desc_match:
-        caption_part = caption_match.group(1).strip() if caption_match else ""
-        desc_part = desc_match.group(1).strip() if desc_match else ""
-        hash_part = hash_match.group(1).strip() if hash_match else ""
-
-        # Normalize hashtags
-        if hash_part:
-            tags = [t if t.startswith("#") else f"#{t}" for t in hash_part.split() if t]
-            hash_part = " ".join(tags)
-
-        sections = [s for s in [caption_part, desc_part, hash_part] if s]
-        return "\n\n".join(sections)[:2200].strip()
-
-    # Fallback: clean raw text from markdown headers
-    cleaned = re.sub(r"###\s*[A-Z\s]+\n", "", text)
-    cleaned = re.sub(r"##\s*[A-Z\s]+\n", "", cleaned)
-    return cleaned[:2200].strip()
 
 
 class InstagramStatusResponse(BaseModel):
@@ -95,15 +48,15 @@ class InstagramStatusResponse(BaseModel):
 class InstagramPublishPayload(BaseModel):
     image_url: Optional[str] = Field(
         default=None,
-        description="Public image URL. If omitted, uses standard high-resolution enterprise AI visual asset.",
+        description="Optional compatibility field; if supplied, it must match the approved image URL.",
     )
     image_b64: Optional[str] = Field(
         default=None,
-        description="Base64 encoded image data from Cloudflare Flux AI generation.",
+        description="Image uploads are not accepted during publishing; approve the saved image first.",
     )
     caption: Optional[str] = Field(
         default=None,
-        description="Customized post caption. If omitted, cleanly extracts Caption + Description + Hashtags from content_text.",
+        description="Optional compatibility field; if supplied, it must match the approved caption.",
     )
 
 
@@ -212,75 +165,46 @@ async def publish_content_to_instagram(
             detail=f"Content item must be 'approved' before publishing. Current status: '{content.approval_status}'",
         )
 
-    # 4. Prepare image URL for Meta (strictly use the post's exact generated image)
-    image_url = payload.image_url.strip() if payload and payload.image_url else None
-
-    static_dir = os.path.join(os.getcwd(), "static", "generated_images")
-    os.makedirs(static_dir, exist_ok=True)
-    post_img = os.path.join(static_dir, f"{content_id}.jpg")
-    last_img = os.path.join(static_dir, "last_generated.jpg")
-    base_public_url = (settings.PUBLIC_APP_URL or "http://localhost:8000").rstrip("/")
-
-    # If base64 image data is supplied from client, write it to disk immediately!
-    if payload and payload.image_b64:
-        try:
-            b64_str = payload.image_b64
-            if "," in b64_str:
-                b64_str = b64_str.split(",", 1)[1]
-            img_bytes = base64.b64decode(b64_str)
-            with open(post_img, "wb") as f:
-                f.write(img_bytes)
-            with open(last_img, "wb") as f:
-                f.write(img_bytes)
-            if not image_url:
-                image_url = f"{base_public_url}/static/generated_images/{content_id}.jpg"
-            logger.info("Decoded and saved payload.image_b64 to disk -> %s", image_url)
-        except Exception as e:
-            logger.warning("Failed to decode payload.image_b64: %s", e)
-
-    if not image_url:
-        if os.path.exists(post_img):
-            image_url = f"{base_public_url}/static/generated_images/{content_id}.jpg"
-        elif os.path.exists(last_img):
-            image_url = f"{base_public_url}/static/generated_images/last_generated.jpg"
-
-    # If still no image file, auto-generate it right now using Cloudflare Workers AI!
-    if not image_url:
-        try:
-            from app.integrations.cloudflare.image_client import CloudflareImageClient
-            cf_client = CloudflareImageClient()
-            if cf_client.is_configured:
-                prompt_text = f"Photorealistic corporate technology promotional visual for DataFactZ: {content.topic or 'Enterprise AI Automation'}"
-                res = await cf_client.generate_branding_image(
-                    prompt=prompt_text,
-                    company_name="DataFactZ",
-                    topic=content.topic,
-                )
-                data_uri = res["image_data_uri"]
-                b64_content = data_uri.split(",", 1)[1] if "," in data_uri else data_uri
-                img_bytes = base64.b64decode(b64_content)
-                with open(post_img, "wb") as f:
-                    f.write(img_bytes)
-                with open(last_img, "wb") as f:
-                    f.write(img_bytes)
-                image_url = f"{base_public_url}/static/generated_images/{content_id}.jpg"
-                logger.info("On-demand Cloudflare Flux image generated and saved for %s -> %s", content_id, image_url)
-        except Exception as e:
-            logger.error("Auto-generation of Cloudflare visual failed: %s", e)
-
-    if not image_url:
+    if content.platform_target != "instagram":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No generated visual asset found for this post. Please generate the Cloudflare AI creative before publishing.",
+            detail="Only approved Instagram content can be published to Instagram.",
         )
 
-    # 5. Clean and format Instagram caption (strips internal visual specifications & system prompts)
-    if payload and payload.caption and payload.caption.strip():
-        caption = payload.caption.strip()[:2200]
-    else:
-        caption = clean_instagram_caption(content.content_text)
+    image_url = (content.image_url or "").strip()
+    parsed_image_url = urlparse(image_url)
+    if parsed_image_url.scheme != "https" or not parsed_image_url.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The approved image must have a public HTTPS URL before publishing.",
+        )
+
+    caption = (content.caption or clean_instagram_caption(content.content_text)).strip()
+    if not caption or len(caption) > 2200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The approved caption must contain 1 to 2,200 characters before publishing.",
+        )
+
+    if payload:
+        if payload.image_b64:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The publish request cannot replace the approved image. Update and reapprove the content first.",
+            )
+        if payload.image_url and payload.image_url.strip() != image_url:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The publish request image does not match the approved image.",
+            )
+        if payload.caption and payload.caption.strip() != caption:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The publish request caption does not match the approved caption.",
+            )
 
     client = InstagramAPIClient(access_token=token)
+    api_host = urlparse(client.base_url).hostname or client.base_url
     req = InstagramPublishRequest(
         instagram_user_id=user_id,
         caption=caption,
@@ -295,13 +219,14 @@ async def publish_content_to_instagram(
             message=f"Post published successfully to Instagram! Media ID: {publish_res.media_id}",
         )
     except httpx.ConnectError as exc:
-        logger.error("Meta Graph API connection failed: %s", exc)
+        logger.exception("Instagram Graph API connection to %s failed", api_host)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=(
-                "Connection to graph.facebook.com was reset by your network firewall ([WinError 10054]). "
-                "Your office network or ISP firewall blocks Facebook endpoints. "
-                "To publish, either: 1) Switch to mobile hotspot/personal network, or 2) Generate an Instagram User Token (IGAA...) via Instagram Login for Business on graph.instagram.com."
+                f"The backend connection to {api_host} was reset before Meta returned a response. "
+                "Allow outbound HTTPS to this host in your firewall or proxy. "
+                "If this host is graph.facebook.com, an Instagram User access token from Business Login for Instagram uses graph.instagram.com instead; "
+                "the access token and Instagram account ID must both come from that same login flow."
             ),
         )
     except Exception as exc:

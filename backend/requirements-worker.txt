@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 celery
 redis
 sqlalchemy
@@ -8,3 +9,12 @@ python-dotenv
 httpx
 crawl4ai
 beautifulsoup4
+pgvector
+torch==2.15.0+cpu
+sentence-transformers
+langgraph
+langchain
+langchain-ollama
+ollama
+pillow
+httpx
