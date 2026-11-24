@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { authApi } from '../../lib/api/auth';
 import { InvitationVerifyResponse } from '../../types';
-import { ArrowRight, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Lock, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface InviteAcceptPageProps {
   token: string;
@@ -65,7 +65,7 @@ export const InviteAcceptPage: React.FC<InviteAcceptPageProps> = ({ token, onNav
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-[linear-gradient(135deg,#eef7fd,#fff)] flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#256D58] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-[#66716B]">Verifying invitation...</p>
@@ -75,11 +75,11 @@ export const InviteAcceptPage: React.FC<InviteAcceptPageProps> = ({ token, onNav
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef7fd,#fff)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#14211C] flex items-center justify-center text-white font-bold text-lg">
-            N
+          <div className="flex h-10 w-10 -rotate-6 items-center justify-center rounded-[12px] bg-[#087fd7] text-white shadow-[0_10px_25px_rgba(22,136,210,.20)]">
+            <Sparkles className="h-5 w-5" fill="currentColor" />
           </div>
           <span className="text-2xl font-bold text-[#171B1A] tracking-tight">
             Nexora<span className="text-[#256D58]">.AI</span>
@@ -159,7 +159,7 @@ export const InviteAcceptPage: React.FC<InviteAcceptPageProps> = ({ token, onNav
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#256D58] text-white text-sm font-semibold hover:bg-[#1E5846] transition-all disabled:opacity-50"
+                className="lime-button w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full text-[#172300] text-sm font-bold disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -181,7 +181,7 @@ export const InviteAcceptPage: React.FC<InviteAcceptPageProps> = ({ token, onNav
               </p>
               <button
                 onClick={() => onNavigate('/login')}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#256D58] text-white text-sm font-medium hover:bg-[#1E5846]"
+                className="lime-button inline-flex items-center justify-center px-5 py-3 rounded-full text-[#172300] text-sm font-bold"
               >
                 Return to Login
               </button>

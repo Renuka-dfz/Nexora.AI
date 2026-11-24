@@ -41,6 +41,30 @@ export interface ContentItem {
   generation_type: GenerationType;
   approval_status: ApprovalStatus;
   created_at: string;
+  generation_batch_id?: string | null;
+  image_url?: string | null;
+  caption?: string | null;
+  hashtags?: string | null;
+  scheduled_at?: string | null;
+  published_at?: string | null;
+  published_post_id?: string | null;
+  publish_status?: 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
+  publish_error?: string | null;
+}
+
+export interface ContentGenerationBatch {
+  batch_id: string;
+  company_id: string;
+  platform: Platform;
+  mode: 'automatic' | 'manual';
+  status: 'queued' | 'generating' | 'completed' | 'partial' | 'failed';
+  prompt?: string | null;
+  total_requested: number;
+  total_created: number;
+  error_message?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+  posts: ContentItem[];
 }
 
 export interface ContentListResponse {

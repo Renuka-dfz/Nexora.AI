@@ -35,8 +35,41 @@ services:
       CRAWL_HTTP_TIMEOUT_SECONDS: ${CRAWL_HTTP_TIMEOUT_SECONDS:-10}
       CRAWL_MAX_RESPONSE_BYTES: ${CRAWL_MAX_RESPONSE_BYTES:-2097152}
       CRAWL_JSON_OUTPUT_DIR: /app/data/crawl-json
+      OLLAMA_BASE_URL: ${WORKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:2b}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RECRAFT_API_TOKEN: ${RECRAFT_API_TOKEN:-}
+      IG_ACCESS_TOKEN: ${IG_ACCESS_TOKEN:-}
+      IG_USER_ID: ${IG_USER_ID:-}
+      LINKEDIN_ACCESS_TOKEN: ${LINKEDIN_ACCESS_TOKEN:-}
+      LINKEDIN_ORGANIZATION_URN: ${LINKEDIN_ORGANIZATION_URN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - crawl_json_data:/app/data/crawl-json
+      - ./backend/static/generated_images:/app/static/generated_images
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    command:
+      - python
+      - -m
+      - celery
+      - -A
+      - app.core.celery_app:celery_app
+      - beat
+      - --loglevel=INFO
+    environment:
+      DATABASE_URL: ${WORKER_DATABASE_URL:?WORKER_DATABASE_URL is required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy

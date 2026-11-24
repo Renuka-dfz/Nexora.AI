@@ -37,6 +37,9 @@ const OnboardingPage = lazy(() =>
 const InviteAcceptPage = lazy(() =>
   import('./features/auth/InviteAcceptPage').then((m) => ({ default: m.InviteAcceptPage }))
 );
+const LandingPage = lazy(() =>
+  import('./pages/LandingPage').then((m) => ({ default: m.LandingPage }))
+);
 
 // Layout-stable Soft Graphite skeleton loader (prevents layout shifts during React.lazy loading)
 const PageSkeleton: React.FC = () => (
@@ -113,20 +116,6 @@ const AppRoutes: React.FC = () => {
     else if (currentPath === '/app/team') navigate('/settings');
   }, [currentPath]);
 
-  // Root redirect per Section 7 (Landing page removed from active routing)
-  useEffect(() => {
-    if (isLoading) return;
-    if (currentPath === '/') {
-      if (!isAuthenticated) {
-        navigate('/login');
-      } else if (!hasCompany) {
-        navigate('/onboarding');
-      } else {
-        navigate('/overview');
-      }
-    }
-  }, [currentPath, isAuthenticated, hasCompany, isLoading]);
-
   // If user is already authenticated with a company and visits /login or /register, redirect to /overview
   useEffect(() => {
     if (!isLoading && isAuthenticated && hasCompany && (currentPath === '/login' || currentPath === '/register')) {
@@ -170,6 +159,18 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  if (currentPath === '/crawl') {
+    return (
+      <ProtectedRoute onNavigate={navigate}>
+        <AppShell activePath={currentPath} onNavigate={navigate}>
+          <Suspense fallback={<PageSkeleton />}>
+            <MarketingWorkspacePage onNavigate={navigate} initialTab="crawl" />
+          </Suspense>
+        </AppShell>
+      </ProtectedRoute>
+    );
+  }
+
   // Loading state while verifying authentication
   if (isLoading) {
     return (
@@ -179,6 +180,14 @@ const AppRoutes: React.FC = () => {
           <p className="text-xs text-[#737373] font-medium tracking-wide">Loading Nexora.AI...</p>
         </div>
       </div>
+    );
+  }
+
+  if (currentPath === '/') {
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <LandingPage onNavigate={navigate} />
+      </Suspense>
     );
   }
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { companyApi } from '../../lib/api/company';
-import { Building, Globe, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building, Globe, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 
 interface OnboardingPageProps {
   onNavigate: (path: string) => void;
@@ -79,11 +79,11 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef7fd,#fff)] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-xl w-full mx-auto">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-8 h-8 rounded bg-[#252525] text-white font-semibold text-xs mb-3 tracking-wider">
-            N
+          <div className="mx-auto mb-3 flex h-10 w-10 -rotate-6 items-center justify-center rounded-[12px] bg-[#087fd7] text-white shadow-[0_10px_25px_rgba(22,136,210,.20)]">
+            <Sparkles className="h-5 w-5" />
           </div>
           <h1 className="text-[28px] font-semibold tracking-tight text-[#252525] leading-tight">
             Set up your company workspace
@@ -169,7 +169,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-motion w-full mt-3 inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] transition-all disabled:opacity-50 shadow-xs hover:shadow-md cursor-pointer"
+                className="lime-button btn-motion w-full mt-3 inline-flex items-center justify-center gap-2 h-12 px-4 rounded-full text-sm font-bold text-[#172300] disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -218,7 +218,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
 
               <button
                 onClick={() => onNavigate('/overview')}
-                className="btn-motion w-full inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] transition-all shadow-xs hover:shadow-md cursor-pointer"
+                className="lime-button btn-motion w-full inline-flex items-center justify-center gap-2 h-12 px-4 rounded-full text-sm font-bold text-[#172300]"
               >
                 <span>Enter Workspace Overview</span>
                 <ArrowRight className="w-3.5 h-3.5" />

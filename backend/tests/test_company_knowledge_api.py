@@ -1,7 +1,9 @@
 import asyncio
+import base64
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -23,6 +25,7 @@ from app.modules.company_knowledge.models import (
     FactCompanyIntelligence,
     WebsiteCrawlJob,
 )
+from app.modules.marketing.models import DimContent, DimContentGenerationBatch
 from app.modules.company_knowledge.services.content_cleaning import (
     clean_and_split_page,
 )
@@ -526,6 +529,247 @@ def test_marketing_content_workflow_and_social_metadata():
         f"/api/v1/marketing/social-accounts/{account.json()['social_account_id']}",
         headers=headers,
     ).status_code == 409
+
+
+def test_instagram_content_requires_saved_image_and_publishes_approved_values(monkeypatch):
+    from app.core.config import settings
+    from app.integrations.instagram import routes as instagram_routes
+
+    headers = auth_headers()
+    company = client.post(
+        "/api/v1/companies",
+        json={"company_name": "Instagram approval company"},
+        headers=headers,
+    ).json()
+    content = client.post(
+        "/api/v1/marketing/content",
+        json={
+            "company_id": company["company_id"],
+            "content_title": "Launch",
+            "content_type": "post",
+            "platform_target": "instagram",
+            "content_text": (
+                "### CAPTION\nApproved hook\n\n"
+                "### DESCRIPTION\nApproved details\n\n"
+                "### HASHTAGS\n#Nexora #AI"
+            ),
+            "generation_type": "manual",
+        },
+        headers=headers,
+    ).json()
+    content_id = content["content_id"]
+
+    missing_image = client.post(
+        f"/api/v1/marketing/content/{content_id}/submit",
+        headers=headers,
+    )
+    assert missing_image.status_code == 409
+
+    approved_image_url = "https://cdn.example.com/approved-image.jpg"
+    approved_caption = "Approved hook\n\nApproved details\n\n#Nexora #AI"
+    with TestingSessionLocal() as db:
+        db_content = db.get(DimContent, UUID(content_id))
+        db_content.image_url = approved_image_url
+        db.commit()
+
+    submitted = client.post(
+        f"/api/v1/marketing/content/{content_id}/submit",
+        headers=headers,
+    )
+    assert submitted.status_code == 200
+    assert submitted.json()["caption"] == approved_caption
+
+    approved = client.post(
+        f"/api/v1/marketing/content/{content_id}/approve",
+        headers=headers,
+    )
+    assert approved.status_code == 200
+    assert approved.json()["caption"] == approved_caption
+    assert approved.json()["image_url"] == approved_image_url
+
+    captured_requests = []
+
+    class FakeInstagramClient:
+        def __init__(self, access_token):
+            self.access_token = access_token
+
+    async def fake_publish(client_instance, request):
+        captured_requests.append(request)
+        return SimpleNamespace(media_id="published-media-id")
+
+    monkeypatch.setattr(settings, "IG_ACCESS_TOKEN", "test-token")
+    monkeypatch.setattr(settings, "IG_USER_ID", "test-instagram-user")
+    monkeypatch.setattr(instagram_routes, "InstagramAPIClient", FakeInstagramClient)
+    monkeypatch.setattr(instagram_routes, "execute_full_instagram_publish", fake_publish)
+
+    overridden = client.post(
+        f"/api/v1/integrations/instagram/publish/{content_id}",
+        json={
+            "image_url": "https://cdn.example.com/unapproved.jpg",
+            "caption": "Unapproved caption",
+        },
+        headers=headers,
+    )
+    assert overridden.status_code == 409
+    assert captured_requests == []
+
+    published = client.post(
+        f"/api/v1/integrations/instagram/publish/{content_id}",
+        headers=headers,
+    )
+    assert published.status_code == 200
+    assert len(captured_requests) == 1
+    assert captured_requests[0].image_url == approved_image_url
+    assert captured_requests[0].caption == approved_caption
+
+
+def test_recraft_image_generation_persists_content_image_url(monkeypatch, tmp_path):
+    from io import BytesIO
+    from PIL import Image
+    from app.core.config import settings
+    from app.integrations.recraft import routes as recraft_routes
+
+    headers = auth_headers()
+    company = client.post(
+        "/api/v1/companies",
+        json={"company_name": "Image persistence company"},
+        headers=headers,
+    ).json()
+    content = client.post(
+        "/api/v1/marketing/content",
+        json={
+            "company_id": company["company_id"],
+            "content_title": "Launch",
+            "content_type": "post",
+            "platform_target": "instagram",
+            "content_text": "A product launch",
+            "generation_type": "manual",
+        },
+        headers=headers,
+    ).json()
+
+    image_buffer = BytesIO()
+    Image.new("RGB", (8, 8), color=(30, 45, 55)).save(image_buffer, format="PNG")
+    image_data = base64.b64encode(image_buffer.getvalue()).decode("ascii")
+
+    class FakeRecraftClient:
+        is_configured = True
+
+        async def generate_branding_image(self, **kwargs):
+            return {
+                "image_data_uri": f"data:image/jpeg;base64,{image_data}",
+                "prompt": kwargs["prompt"],
+                "model": "test-model",
+            }
+
+    monkeypatch.setattr(recraft_routes, "RecraftImageClient", FakeRecraftClient)
+    monkeypatch.setattr(recraft_routes.os, "getcwd", lambda: str(tmp_path))
+    monkeypatch.setattr(settings, "PUBLIC_APP_URL", "https://nexora.example")
+
+    generated = client.post(
+        "/api/v1/integrations/recraft/generate-image",
+        json={
+            "prompt": "A branded launch image",
+            "company_name": "Nexora",
+            "size": "1:1",
+            "content_id": content["content_id"],
+        },
+        headers=headers,
+    )
+    assert generated.status_code == 200
+    public_url = generated.json()["public_url"]
+    assert public_url.startswith("https://nexora.example/static/generated_images/")
+
+    saved_content = client.get(
+        f"/api/v1/marketing/content/{content['content_id']}",
+        headers=headers,
+    )
+    assert saved_content.status_code == 200
+    assert saved_content.json()["image_url"] == public_url
+    assert (tmp_path / "static" / "generated_images" / public_url.rsplit("/", 1)[-1]).is_file()
+
+    submitted = client.post(
+        f"/api/v1/marketing/content/{content['content_id']}/submit",
+        headers=headers,
+    )
+    assert submitted.status_code == 200
+    regeneration = client.post(
+        "/api/v1/integrations/recraft/generate-image",
+        json={
+            "prompt": "A replacement launch image",
+            "company_name": "Nexora",
+            "content_id": content["content_id"],
+        },
+        headers=headers,
+    )
+    assert regeneration.status_code == 409
+
+
+def test_weekly_generation_saves_options_and_restores_latest_batch(monkeypatch):
+    headers = auth_headers()
+    company = client.post(
+        "/api/v1/companies",
+        json={"company_name": "Weekly marketing company"},
+        headers=headers,
+    ).json()
+    queued_calls = []
+    from app.modules.marketing import tasks as marketing_tasks
+    monkeypatch.setattr(
+        marketing_tasks.generate_weekly_batch_task,
+        "delay",
+        lambda *args: queued_calls.append(args),
+    )
+
+    generated = client.post(
+        "/api/v1/marketing/content/generate-weekly",
+        json={
+            "platform": "linkedin",
+            "mode": "manual",
+            "content_type": "article",
+            "prompt": "Quarterly product lessons",
+            "tone": "thought leadership",
+            "instructions": "Include a concise customer impact example.",
+        },
+        headers=headers,
+    )
+    assert generated.status_code == 202
+    batch_id = generated.json()["batch_id"]
+    assert queued_calls == [(
+        batch_id,
+        "article",
+        "Include a concise customer impact example.",
+        "thought leadership",
+    )]
+
+    content = client.post(
+        "/api/v1/marketing/content",
+        json={
+            "company_id": company["company_id"],
+            "content_title": "Quarterly lessons",
+            "content_type": "article",
+            "platform_target": "linkedin",
+            "content_text": "The saved weekly draft.",
+            "generation_type": "ai",
+        },
+        headers=headers,
+    )
+    assert content.status_code == 201
+
+    with TestingSessionLocal() as db:
+        saved_content = db.get(DimContent, UUID(content.json()["content_id"]))
+        saved_batch = db.get(DimContentGenerationBatch, UUID(batch_id))
+        saved_content.generation_batch_id = saved_batch.batch_id
+        db.commit()
+
+    restored = client.get(
+        "/api/v1/marketing/content/batches/latest",
+        headers=headers,
+    )
+    assert restored.status_code == 200
+    assert restored.json()["batch_id"] == batch_id
+    assert [post["content_id"] for post in restored.json()["posts"]] == [
+        content.json()["content_id"]
+    ]
 
 
 def test_lead_crud_and_qualification_history():

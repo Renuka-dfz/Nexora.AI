@@ -37,13 +37,13 @@ import {
   Square,
   Download,
 } from 'lucide-react';
-import { GeneratedGraphicBanner } from '../content-studio/components/GeneratedGraphicBanner';
 import { GeneratedVideoReel } from '../content-studio/components/GeneratedVideoReel';
 import { InstagramFieldViewer } from '../content-studio/components/InstagramFieldViewer';
 import { parseInstagramContent } from '../content-studio/components/instagramParser';
 
 interface MarketingWorkspacePageProps {
   onNavigate: (path: string) => void;
+  initialTab?: 'review' | 'crawl';
 }
 
 const getDomain = (url?: string | null): string => {
@@ -57,13 +57,19 @@ const getDomain = (url?: string | null): string => {
   }
 };
 
+const getInstagramCaption = (item: ContentItem): string => {
+  const parsed = parseInstagramContent(item.content_text, item.content_title);
+  return [parsed.caption, parsed.description, parsed.hashtags.join(' ')].filter(Boolean).join('\n\n');
+};
+
 export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   onNavigate,
+  initialTab = 'review',
 }) => {
   const { companyId, role } = useAuth();
 
   // Primary Workspace Tab: 'review' (Editorial Queue) | 'crawl' (Web Crawl)
-  const [activeTab, setActiveTab] = useState<'review' | 'crawl'>('review');
+  const [activeTab, setActiveTab] = useState<'review' | 'crawl'>(initialTab);
 
   // =========================================================================
   // TAB 1: EDITORIAL REVIEW QUEUE STATE
@@ -97,11 +103,8 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   const [showIgModal, setShowIgModal] = useState(false);
   const [igModalItem, setIgModalItem] = useState<ContentItem | null>(null);
   const [igModalCaption, setIgModalCaption] = useState('');
-  const [igModalFluxImage, setIgModalFluxImage] = useState<string | null>(null);
-  const [igModalImageUrl, setIgModalImageUrl] = useState(
-    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80'
-  );
-  const [igModalCustomUrl, setIgModalCustomUrl] = useState('');
+  const [igModalImageLoaded, setIgModalImageLoaded] = useState(false);
+  const [igModalImageLoadError, setIgModalImageLoadError] = useState(false);
 
   // LinkedIn Integration State
   const [linkedinStatus, setLinkedinStatus] = useState<{
@@ -148,6 +151,13 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
   const canApprove = role === 'admin' || role === 'reviewer';
   const isAdmin = role === 'admin';
+  const igModalImageUrl = (igModalItem?.image_url || '').trim();
+  const igModalPublishReady =
+    igModalImageUrl.startsWith('https://') &&
+    Boolean(igModalCaption.trim()) &&
+    igModalCaption.length <= 2200 &&
+    igModalImageLoaded &&
+    !igModalImageLoadError;
 
   // Registered Website Domain policy validation
   const registeredUrl = company?.website_url?.trim() || '';
@@ -268,48 +278,6 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (stepTimerRef.current) clearInterval(stepTimerRef.current);
 
-    // Dynamic progression across the 5 intermediate live steps
-    let currentStep = 1;
-    stepTimerRef.current = setInterval(() => {
-      currentStep += 1;
-      if (currentStep <= 5) {
-        setCrawlLiveStep(currentStep);
-        const logMap: Record<number, { title: string; msg: string }> = {
-          2: {
-            title: 'Inspected',
-            msg: `Preflight checks succeeded for ${targetUrl}. Response HTTP 200 OK verified. HTML DOM tree inspected.`,
-          },
-          3: {
-            title: 'Extracted',
-            msg: 'Extracted page metadata, hierarchical headers (H1–H6), meta descriptions, and raw markdown content.',
-          },
-          4: {
-            title: 'Normalization & Cleaning',
-            msg: 'Stripped boilerplate tags (scripts, stylesheets, nav menus, footers). Sanitized whitespace & chunked with SHA-256.',
-          },
-          5: {
-            title: 'Classification into Categories',
-            msg: 'Categorized sections into 16 authoritative taxonomies: Industry Solutions, Services, Products, Case Studies, and Tech Stack.',
-          },
-        };
-        const item = logMap[currentStep];
-        if (item) {
-          setCrawlLogs((prev) => [
-            ...prev.map((l) => (l.stepNumber < currentStep ? { ...l, status: 'completed' as const } : l)),
-            {
-              timestamp: now(),
-              stepTitle: item.title,
-              stepNumber: currentStep,
-              message: item.msg,
-              status: 'running' as const,
-            },
-          ]);
-        }
-      } else {
-        if (stepTimerRef.current) clearInterval(stepTimerRef.current);
-      }
-    }, 2400);
-
     try {
       const job = await companyApi.startCrawl(companyId, targetUrl);
       setActiveJob(job);
@@ -393,6 +361,10 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   // -------------------------------------------------------------------------
   const handleApprove = async (item: ContentItem) => {
     if (!canApprove) return;
+    if (item.platform_target === 'instagram' && !item.image_url) {
+      setError('Save the Instagram image before approving this content.');
+      return;
+    }
     setActionLoading(true);
     setError(null);
     setSuccessMsg(null);
@@ -468,41 +440,25 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
     const parsed = parseInstagramContent(item.content_text, item.content_title);
     const cleanCaption = [parsed.caption, parsed.description, parsed.hashtags.join(' ')].filter(Boolean).join('\n\n');
 
-    const savedFlux =
-      localStorage.getItem(`flux_image_${item.content_id}`) ||
-      (item.topic ? localStorage.getItem(`flux_image_${item.topic}`) : null) ||
-      localStorage.getItem('last_flux_image');
-
-    const savedPublicUrl =
-      localStorage.getItem(`flux_public_url_${item.content_id}`) ||
-      localStorage.getItem('last_flux_public_url') ||
-      '';
-
     setIgModalItem(item);
-    setIgModalCaption(cleanCaption);
-    setIgModalFluxImage(savedFlux || null);
-    setIgModalCustomUrl(savedPublicUrl);
+    setIgModalCaption(item.caption || cleanCaption);
+    setIgModalImageLoaded(false);
+    setIgModalImageLoadError(false);
     setShowIgModal(true);
   };
 
   const handleConfirmPublishInstagram = async () => {
     if (!igModalItem) return;
-    const imageToUse = igModalCustomUrl.trim();
-    const b64ToUse =
-      igModalFluxImage ||
-      localStorage.getItem(`flux_image_${igModalItem.content_id}`) ||
-      localStorage.getItem('last_flux_image') ||
-      undefined;
+    if (!igModalItem.image_url || !igModalCaption.trim() || !igModalImageLoaded || igModalImageLoadError) {
+      setError('The approved Instagram image and caption are required before publishing.');
+      return;
+    }
 
     setPublishingIgId(igModalItem.content_id);
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await marketingApi.publishToInstagram(igModalItem.content_id, {
-        image_url: imageToUse || undefined,
-        image_b64: b64ToUse,
-        caption: igModalCaption.trim(),
-      });
+      const res = await marketingApi.publishToInstagram(igModalItem.content_id);
       setSuccessMsg(`🚀 ${res.message || 'Published to Instagram!'} (Media ID: ${res.media_id})`);
       setShowIgModal(false);
     } catch (err: any) {
@@ -511,6 +467,39 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
       setError(msg || 'Failed to publish to Instagram. Verify your Meta Graph API credentials in .env');
     } finally {
       setPublishingIgId(null);
+    }
+  };
+
+  const handleGenerateContentImage = async (item: ContentItem) => {
+    if (item.approval_status !== 'draft' && item.approval_status !== 'rejected') return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const prompt = `Photorealistic corporate technology promotional visual for DataFactZ: ${item.topic || item.content_title || 'Enterprise AI Automation'}, futuristic digital data architecture, minimal slate background, cinematic lighting`;
+      const result = await marketingApi.generateRecraftImage({
+        prompt,
+        topic: item.topic || undefined,
+        company_name: 'DataFactZ',
+        custom_style: 'polished corporate social image, no logos or watermarks',
+        content_id: item.content_id,
+        size: item.platform_target === 'instagram' ? '1:1' : '16:9',
+      });
+      if (!result.public_url) {
+        throw new Error('Image generation succeeded but did not return a saved public URL.');
+      }
+
+      const updatedItem = { ...item, image_url: result.public_url };
+      setItems((prev) => prev.map((current) =>
+        current.content_id === updatedItem.content_id ? updatedItem : current
+      ));
+      setSelectedItem((current) =>
+        current?.content_id === updatedItem.content_id ? updatedItem : current
+      );
+      setSuccessMsg('Image generated and saved to this content item.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to generate and save the image.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -547,8 +536,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
       rawTitle.includes('graphic') ||
       rawText.includes('### visual asset specification') ||
       rawText.includes('visual graphic direction') ||
-      rawText.includes('branded visual graphic') ||
-      rawText.includes('flux')
+      rawText.includes('branded visual graphic')
     ) {
       return 'image';
     }
@@ -565,9 +553,16 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
     return 'post';
   };
 
+  // Saved creatives belong in the Images view even when they are attached to a social post.
+  const matchesFormat = (item: ContentItem, format: 'all' | 'article' | 'post' | 'image' | 'video') =>
+    format === 'all' ||
+    (format === 'image'
+      ? getItemTypeCategory(item) === 'image' || Boolean(item.image_url)
+      : getItemTypeCategory(item) === format);
+
   const filteredItems = items.filter((item) => {
     if (statusFilter !== 'all' && item.approval_status !== statusFilter) return false;
-    if (typeFilter !== 'all' && getItemTypeCategory(item) !== typeFilter) return false;
+    if (!matchesFormat(item, typeFilter)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = item.content_title.toLowerCase().includes(q);
@@ -586,13 +581,13 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   const totalItemCount = items.length;
   const articleTotal = items.filter((i) => getItemTypeCategory(i) === 'article').length;
   const postTotal = items.filter((i) => getItemTypeCategory(i) === 'post').length;
-  const imageTotal = items.filter((i) => getItemTypeCategory(i) === 'image').length;
+  const imageTotal = items.filter((i) => matchesFormat(i, 'image')).length;
   const videoTotal = items.filter((i) => getItemTypeCategory(i) === 'video').length;
 
   // Format-scoped items (for sub-status counts):
   const formatScopedItems = typeFilter === 'all'
     ? items
-    : items.filter((i) => getItemTypeCategory(i) === typeFilter);
+    : items.filter((i) => matchesFormat(i, typeFilter));
 
   const formatPendingCount = formatScopedItems.filter((i) => i.approval_status === 'pending').length;
   const formatApprovedCount = formatScopedItems.filter((i) => i.approval_status === 'approved').length;
@@ -601,7 +596,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
   const handleSelectFormat = (format: 'all' | 'article' | 'post' | 'image' | 'video') => {
     setTypeFilter(format);
-    const targetItems = format === 'all' ? items : items.filter((i) => getItemTypeCategory(i) === format);
+    const targetItems = items.filter((item) => matchesFormat(item, format));
     // If the active statusFilter has 0 items in this newly chosen format, auto-switch to 'all'
     // so the user immediately sees all available items (approved, rejected, etc.) instead of an empty screen!
     if (statusFilter !== 'all') {
@@ -681,27 +676,27 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="marketing-theme space-y-6">
       {/* Workspace Header */}
-      <div className="pb-5 border-b border-[#E7E5E4] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="workspace-header px-5 py-5 sm:px-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[28px] font-semibold text-[#252525] tracking-tight leading-tight">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight">
               Marketing Agent Workspace
             </h1>
-            <span className="px-2.5 py-0.5 text-xs font-medium bg-[#F0EFED] text-[#252525] rounded-full border border-[#E7E5E4]">
+            <span className="px-2.5 py-1 text-[11px] font-bold bg-white/15 text-white rounded-full border border-white/25">
               Multi-Stage Agent
             </span>
           </div>
-          <p className="text-sm text-[#737373] mt-1 max-w-2xl leading-relaxed">
-            Manage web crawl pipeline, vector grounding in pgvector, and editorial review of generated marketing assets.
+          <p className="text-sm mt-2 max-w-2xl leading-relaxed text-white/78">
+            Manage crawling, company knowledge, and editorial review.
           </p>
         </div>
 
         {/* Primary Action: Go to Content Studio */}
         <button
           onClick={() => onNavigate('/content-studio')}
-          className="btn-motion inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#252525] hover:bg-[#383838] text-white text-xs font-semibold shadow-xs hover:shadow-md cursor-pointer shrink-0 group"
+          className="lime-button btn-motion inline-flex items-center justify-center gap-2 h-10 px-4 rounded-full text-[#172300] text-xs font-bold shadow-xs hover:shadow-md cursor-pointer shrink-0 group"
         >
           <PenTool className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform duration-200" />
           <span>Generate New in Studio</span>
@@ -767,8 +762,8 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
           {/* Format & Status Filter System (Format-First Architecture) */}
           <div className="space-y-3 bg-white p-4 sm:p-5 rounded-2xl border border-[#E7E5E4] shadow-xs">
             {/* ROW 1: PRIMARY FORMAT SELECTOR TABS */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E7E5E4]">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex flex-col gap-3 pb-3 border-b border-[#E7E5E4]">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#737373] mr-2 shrink-0">
                   Format:
                 </span>
@@ -874,7 +869,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
             {/* ROW 2: SCOPED STATUS TABS FOR SELECTED FORMAT */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#737373] mr-2 shrink-0">
                   Status:
                 </span>
@@ -1070,6 +1065,15 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                             {item.content_text.replace(/[#*`\[\]]/g, '').slice(0, 160)}...
                           </p>
 
+                          {typeFilter === 'image' && item.image_url && (
+                            <img
+                              src={item.image_url}
+                              alt={`Generated image for ${item.content_title || 'content'}`}
+                              loading="lazy"
+                              className="w-full aspect-square object-cover rounded-xl border border-[#E7E5E4] bg-[#FAFAF9]"
+                            />
+                          )}
+
                           {item.approval_status === 'rejected' && rejectionReason && (
                             <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-[11px] text-red-700 leading-snug">
                               <span className="font-semibold">Reason:</span> {rejectionReason}
@@ -1194,7 +1198,12 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
                       <button
                         onClick={() => handleApprove(selectedItem)}
-                        disabled={actionLoading}
+                        disabled={actionLoading || (selectedItem.platform_target === 'instagram' && !selectedItem.image_url)}
+                        title={
+                          selectedItem.platform_target === 'instagram' && !selectedItem.image_url
+                            ? 'Save the Instagram image before approval'
+                            : undefined
+                        }
                         className="btn-motion inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#252525] hover:bg-[#383838] rounded-xl shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1233,7 +1242,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                       </div>
 
                       {/* Instagram Channel Publish Button */}
-                      {(selectedItem.platform_target === 'instagram' || selectedItem.platform_target === 'all') && (
+                      {selectedItem.platform_target === 'instagram' && (
                         <button
                           type="button"
                           onClick={() => handlePublishToInstagram(selectedItem)}
@@ -1350,14 +1359,54 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                 )}
 
                 {/* Social Post Preview Mockup */}
-                {getItemTypeCategory(selectedItem) === 'post' && (
+                {getItemTypeCategory(selectedItem) === 'post' && !(typeFilter === 'image' && selectedItem.image_url) && (
                   <div className="space-y-4">
                     {selectedItem.platform_target === 'instagram' ? (
                       /* Dedicated 4-field Instagram breakdown: Caption, Description, Hashtags, SEO */
-                      <InstagramFieldViewer
-                        rawText={selectedItem.content_text}
-                        defaultTitle={selectedItem.content_title}
-                      />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-4 rounded-2xl border border-[#E7E5E4] bg-[#FAFAF9] p-4">
+                          <div className="aspect-square overflow-hidden rounded-xl border border-[#E7E5E4] bg-white">
+                            {selectedItem.image_url ? (
+                              <img
+                                src={selectedItem.image_url}
+                                alt={`Approved creative for ${selectedItem.content_title}`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center">
+                                <ImageIcon className="h-8 w-8 text-[#A8A29E]" />
+                                <p className="text-xs text-[#737373]">
+                                  No saved Instagram image. Generate and save the image before submitting for approval.
+                                </p>
+                                {(selectedItem.approval_status === 'draft' || selectedItem.approval_status === 'rejected') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateContentImage(selectedItem)}
+                                    disabled={actionLoading}
+                                    className="btn-motion inline-flex items-center gap-2 rounded-xl bg-[#252525] px-4 py-2 text-xs font-semibold text-white hover:bg-[#383838] disabled:opacity-50"
+                                  >
+                                    {actionLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                                    Generate and save image
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <span className="text-xs font-semibold text-[#252525]">Instagram caption for approval</span>
+                            <div className="min-h-40 flex-1 whitespace-pre-wrap rounded-xl border border-[#E7E5E4] bg-white p-4 text-sm leading-relaxed text-[#252525]">
+                              {selectedItem.caption || getInstagramCaption(selectedItem)}
+                            </div>
+                            <span className="text-[11px] text-[#737373]">
+                              This saved image and caption are the values used when you publish.
+                            </span>
+                          </div>
+                        </div>
+                        <InstagramFieldViewer
+                          rawText={selectedItem.content_text}
+                          defaultTitle={selectedItem.content_title}
+                        />
+                      </div>
                     ) : (
                       /* Unified LinkedIn Post Preview */
                       <div className="space-y-3">
@@ -1393,31 +1442,28 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                 )}
 
                 {/* Image Creative Visual Canvas & Copy */}
-                {getItemTypeCategory(selectedItem) === 'image' && (
+                {(getItemTypeCategory(selectedItem) === 'image' || (typeFilter === 'image' && Boolean(selectedItem.image_url))) && (
                   <div className="space-y-6">
-                    {/* Render Real Generated Cloudflare Flux Image if available, otherwise GeneratedGraphicBanner */}
+                    {/* Show the saved Recraft image or offer generation for eligible drafts. */}
                     {(() => {
-                      const fluxImg =
-                        localStorage.getItem(`flux_image_${selectedItem.content_id}`) ||
-                        (selectedItem.topic ? localStorage.getItem(`flux_image_${selectedItem.topic}`) : null) ||
-                        localStorage.getItem('last_flux_image');
+                      const recraftImage = selectedItem.image_url;
 
-                      if (fluxImg) {
+                      if (recraftImage) {
                         return (
                           <div className="rounded-2xl border border-[#E7E5E4] overflow-hidden bg-gradient-to-b from-[#1C1C1E] to-[#121214] p-5 space-y-4 shadow-sm text-white">
                             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 text-xs">
                               <div className="flex items-center gap-2">
                                 <Sparkles className="w-4 h-4 text-amber-400" />
                                 <span className="font-semibold text-white">
-                                  Generated by Cloudflare Workers AI (Flux-1-schnell)
+                                  Generated by Recraft V4.1 Flash V2
                                 </span>
                                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
                                   ● Photorealistic AI Creative
                                 </span>
                               </div>
                               <a
-                                href={fluxImg}
-                                download={`datafactz-flux-${selectedItem.content_id.slice(0, 8)}.jpg`}
+                                href={recraftImage}
+                                download={`recraft-${selectedItem.content_id.slice(0, 8)}.jpg`}
                                 className="btn-motion inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold cursor-pointer transition-all"
                               >
                                 <span>Download JPEG</span>
@@ -1426,8 +1472,8 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
                             <div className="relative aspect-square max-w-md mx-auto rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-black">
                               <img
-                                src={fluxImg}
-                                alt={selectedItem.content_title || 'Cloudflare Flux AI Generated Image'}
+                                src={recraftImage}
+                                alt={selectedItem.content_title || 'Recraft generated image'}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -1435,7 +1481,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                         );
                       }
 
-                      // If no Flux image is in cache, display a clean generator card (NO CLUTTERED BLUEPRINT)
+                      // If no image is saved yet, offer Recraft generation for draft content.
                       return (
                         <div className="p-8 rounded-2xl border-2 border-dashed border-[#E7E5E4] bg-[#FAFAF9] text-center space-y-3">
                           <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
@@ -1446,45 +1492,27 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                               Photorealistic Creative for {selectedItem.topic || 'Enterprise AI'}
                             </h4>
                             <p className="text-xs text-[#737373] max-w-md mx-auto mt-1">
-                              Generate a clean, high-resolution branding visual using Cloudflare Workers AI (Flux-1-schnell) without text clutter.
+                              Generate a high-resolution branding visual with Recraft V4.1 Flash V2.
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={async () => {
-                              setActionLoading(true);
-                              try {
-                                const promptToUse = `Photorealistic corporate technology promotional visual for DataFactZ: ${selectedItem.topic || selectedItem.content_title || 'Enterprise AI Automation'}, futuristic digital data architecture, minimal slate background, 8k resolution, cinematic lighting`;
-                                const res = await marketingApi.generateCloudflareImage({
-                                  prompt: promptToUse,
-                                  topic: selectedItem.topic || undefined,
-                                  company_name: 'DataFactZ',
-                                  content_id: selectedItem.content_id,
-                                });
-                                localStorage.setItem(`flux_image_${selectedItem.content_id}`, res.image_url);
-                                localStorage.setItem('last_flux_image', res.image_url);
-                                if (res.public_url) {
-                                  localStorage.setItem(`flux_public_url_${selectedItem.content_id}`, res.public_url);
-                                }
-                                setSuccessMsg('Photorealistic AI creative generated successfully!');
-                              } catch (err: any) {
-                                setError(err?.message || 'Failed to generate visual with Cloudflare');
-                              } finally {
-                                setActionLoading(false);
-                              }
-                            }}
-                            disabled={actionLoading}
+                            onClick={() => handleGenerateContentImage(selectedItem)}
+                            disabled={
+                              actionLoading ||
+                              (selectedItem.approval_status !== 'draft' && selectedItem.approval_status !== 'rejected')
+                            }
                             className="btn-motion inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#252525] hover:bg-[#383838] text-white text-xs font-semibold cursor-pointer shadow-xs disabled:opacity-50"
                           >
                             {actionLoading ? (
                               <>
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                <span>Generating with Cloudflare Flux...</span>
+                                <span>Generating with Recraft...</span>
                               </>
                             ) : (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                                <span>Generate Clean Flux AI Image</span>
+                                <span>Generate Recraft Image</span>
                               </>
                             )}
                           </button>
@@ -1582,7 +1610,12 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
                         <button
                           onClick={() => handleApprove(selectedItem)}
-                          disabled={actionLoading}
+                          disabled={actionLoading || (selectedItem.platform_target === 'instagram' && !selectedItem.image_url)}
+                          title={
+                            selectedItem.platform_target === 'instagram' && !selectedItem.image_url
+                              ? 'Save the Instagram image before approval'
+                              : undefined
+                          }
                           className="btn-motion inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#252525] hover:bg-[#383838] rounded-xl shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1610,7 +1643,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                         </div>
 
                         {/* Instagram Channel Publish Button */}
-                        {(selectedItem.platform_target === 'instagram' || selectedItem.platform_target === 'all') && (
+                        {selectedItem.platform_target === 'instagram' && (
                           <button
                             type="button"
                             onClick={() => handlePublishToInstagram(selectedItem)}
@@ -2165,13 +2198,15 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                   <div
                     className="bg-[#252525] h-full transition-all duration-500 rounded-full"
                     style={{
-                      width: `${Math.min(100, Math.max(16, (crawlLiveStep / 6) * 100))}%`,
+                      width: activeJob?.status === 'completed'
+                        ? '100%'
+                        : '100%',
                     }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-[#737373]">
                   <span>Step {crawlLiveStep}/6: {crawlLiveStep === 1 ? 'Target discovery & robots.txt' : crawlLiveStep === 2 ? 'Preflight HTTP 200 & DOM' : crawlLiveStep === 3 ? 'Markdown extraction' : crawlLiveStep === 4 ? 'Boilerplate stripped' : crawlLiveStep === 5 ? '16 categories tagged' : 'pgvector embeddings stored'}</span>
-                  <span className="font-mono">{Math.round((crawlLiveStep / 6) * 100)}% Complete</span>
+                  <span className="font-mono">{activeJob?.status === 'completed' ? 'Completed' : crawlLoading ? 'In progress' : 'Waiting'}</span>
                 </div>
               </div>
 
@@ -2366,7 +2401,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
 
       {/* Instagram Publishing Modal Dialog */}
       {showIgModal && igModalItem && (
-        <div className="fixed inset-0 z-50 bg-[#252525]/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
           <div className="bg-white rounded-2xl border border-[#E7E5E4] shadow-2xl w-full max-w-3xl p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-200 my-8">
             <div className="flex items-start justify-between gap-3 pb-4 border-b border-[#E7E5E4]">
               <div className="flex items-center gap-2.5">
@@ -2376,7 +2411,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                 <div>
                   <h3 className="text-base font-bold text-[#252525]">Publish to Instagram Feed</h3>
                   <p className="text-xs text-[#737373]">
-                    Review the image creative and clean caption before dispatching to your connected account.
+                    The exact saved image and caption approved by your administrator will be published.
                   </p>
                 </div>
               </div>
@@ -2389,147 +2424,44 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column: Visual Asset & Image URL Selection */}
+              {/* Saved image preview */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-[#252525]">Image Creative</label>
-                  {igModalFluxImage ? (
-                    <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>Cloudflare Flux AI Generated</span>
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-[#737373]">Public HTTPS URL</span>
-                  )}
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-medium">
+                    Approved asset
+                  </span>
                 </div>
-
-                {/* Live Image Preview */}
                 <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-[#FAFAF9] border border-[#E7E5E4] shadow-2xs">
-                  <img
-                    src={igModalCustomUrl.trim() || igModalFluxImage || igModalImageUrl}
-                    alt="Instagram Post Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80';
-                    }}
-                  />
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-[10px] font-mono text-white">
-                    1:1 Feed Ready
-                  </div>
-                  {igModalFluxImage && !igModalCustomUrl.trim() && (
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between p-2 rounded-lg bg-black/70 backdrop-blur-md text-white text-[10px]">
-                      <span className="font-semibold text-amber-300 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Flux-1-schnell Creative
-                      </span>
-                      <a
-                        href={igModalFluxImage}
-                        download={`datafactz-instagram-${Date.now()}.jpg`}
-                        className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 font-semibold cursor-pointer text-white"
-                      >
-                        Download JPG
-                      </a>
+                  {igModalImageUrl ? (
+                    igModalImageLoadError ? (
+                      <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center text-xs text-red-700">
+                        <AlertCircle className="h-6 w-6" />
+                        <span>The approved image URL could not be loaded. Check that the public backend URL is active and serves this saved image.</span>
+                      </div>
+                    ) : (
+                      <img
+                        src={igModalImageUrl}
+                        alt={`Approved Instagram creative for ${igModalItem.content_title}`}
+                        onError={() => setIgModalImageLoadError(true)}
+                        onLoad={() => setIgModalImageLoaded(true)}
+                        className="h-full w-full object-cover"
+                      />
+                    )
+                  ) : (
+                    <div className="flex h-full items-center justify-center p-5 text-center text-xs text-[#737373]">
+                      No saved Instagram image is attached to this approved content.
                     </div>
                   )}
                 </div>
-
-                {/* Visual Asset Information & Guidance */}
-                <div className="space-y-2">
-                  {igModalFluxImage ? (
-                    <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 space-y-1.5 text-xs">
-                      <div className="flex items-center gap-1.5 font-semibold text-amber-900">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Topic Creative: Cloudflare Workers AI (Flux-1-schnell)</span>
-                      </div>
-                      <p className="text-[11px] text-amber-800 leading-relaxed">
-                        The visual above was custom generated specifically for this post using Flux-1-schnell on Cloudflare AI edge.
-                      </p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <a
-                          href={igModalFluxImage}
-                          download={`datafactz-ai-creative-${Date.now()}.jpg`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] transition-colors cursor-pointer shadow-xs"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>Save Generated JPG</span>
-                        </a>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Public Image URL Input */}
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-[11px] font-semibold text-[#252525] flex items-center justify-between">
-                      <span>Public Hosted URL for Meta:</span>
-                      <span className="text-[10px] text-purple-600 font-normal">Required by Meta Graph API</span>
-                    </label>
-                    <input
-                      type="url"
-                      value={igModalCustomUrl}
-                      onChange={(e) => setIgModalCustomUrl(e.target.value)}
-                      placeholder="https://your-domain.com/path-to-image.jpg"
-                      className="w-full text-xs px-3 py-2.5 rounded-xl border border-[#E7E5E4] bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
-                    />
-                    <p className="text-[10px] text-[#737373] leading-relaxed">
-                      Meta cannot download images directly from your private local machine. Save the generated JPG above, host it on your company CDN, Cloudflare R2, AWS S3, or any public image host, and paste the direct link here.
-                    </p>
-                  </div>
-
-                  {/* Collapsible Generic Stock Fallback (Only as emergency fallback) */}
-                  <details className="pt-1 text-[11px] text-[#737373] group">
-                    <summary className="cursor-pointer font-medium hover:text-[#252525] select-none py-1">
-                      Need a quick test? Use generic stock fallback photo
-                    </summary>
-                    <div className="grid grid-cols-2 gap-1.5 pt-2">
-                      {[
-                        {
-                          label: 'Hardware & AI Core',
-                          url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
-                        },
-                        {
-                          label: 'Neural Network',
-                          url: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=80',
-                        },
-                        {
-                          label: 'Cloud Data Center',
-                          url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80',
-                        },
-                        {
-                          label: 'Data Intelligence',
-                          url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
-                        },
-                      ].map((preset) => {
-                        const isSelected =
-                          !igModalCustomUrl.trim() && igModalImageUrl === preset.url;
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => {
-                              setIgModalCustomUrl(preset.url);
-                              setIgModalImageUrl(preset.url);
-                            }}
-                            className={`p-1.5 rounded-lg border text-left cursor-pointer transition-colors text-[10px] ${isSelected
-                              ? 'bg-purple-50 border-purple-300 text-purple-900 font-semibold'
-                              : 'bg-[#FAFAF9] border-[#E7E5E4] text-[#737373] hover:text-[#252525]'
-                              }`}
-                          >
-                            {preset.label} (Stock)
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </details>
-                </div>
+                <p className="break-all text-[10px] text-[#737373]">{igModalImageUrl || 'Image URL missing'}</p>
               </div>
 
-              {/* Right Column: Clean Caption & Hashtags Editor */}
+              {/* Saved caption */}
               <div className="space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-[#252525]">
-                      Clean Post Caption & Hashtags
-                    </label>
+                    <label className="text-xs font-semibold text-[#252525]">Approved Caption</label>
                     <span
                       className={`text-[10px] font-mono ${igModalCaption.length > 2200 ? 'text-red-600 font-bold' : 'text-[#737373]'
                         }`}
@@ -2538,21 +2470,28 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-[#737373] leading-relaxed">
-                    Internal workflow directives and prompt notes have been stripped. You can customize the caption text and hashtags below:
+                    This caption is read-only. To change it, update the content and submit it for approval again.
                   </p>
                   <textarea
                     rows={12}
                     value={igModalCaption}
-                    onChange={(e) => setIgModalCaption(e.target.value)}
-                    placeholder="Enter Instagram caption with hashtags..."
-                    className="w-full text-xs p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 leading-relaxed font-sans"
+                    readOnly
+                    className="w-full resize-none text-xs text-[#111827] p-3.5 rounded-xl border border-[#E7E5E4] bg-[#FAFAF9] leading-relaxed font-sans"
                   />
                 </div>
 
-                <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-200/60 text-purple-950 text-xs flex items-center gap-2">
+                <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                  igModalPublishReady
+                    ? 'bg-purple-50/60 border-purple-200/60 text-purple-950'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                }`}>
                   <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
                   <span className="text-[11px]">
-                    Meta Graph API will ingest this image directly and publish the clean caption to your feed.
+                    {igModalPublishReady
+                      ? 'Publishing sends these approved database values without substitutions.'
+                      : igModalImageLoadError
+                        ? 'The saved image URL is unreachable. Restore the public backend tunnel and update the approved image URL before publishing.'
+                        : 'Publishing requires a saved public HTTPS image and a non-empty approved caption.'}
                   </span>
                 </div>
               </div>
@@ -2572,8 +2511,7 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
                 onClick={handleConfirmPublishInstagram}
                 disabled={
                   publishingIgId === igModalItem.content_id ||
-                  !igModalCaption.trim() ||
-                  igModalCaption.length > 2200
+                  !igModalPublishReady
                 }
                 className="btn-motion inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs"
               >

@@ -18,6 +18,8 @@ authorization. No CompanyMembership dependency.
 """
 
 from uuid import UUID
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from fastapi import (
     APIRouter,
@@ -37,12 +39,14 @@ from app.core.security import (
     ensure_company_access,
     get_current_user,
 )
+from app.integrations.instagram.caption import clean_instagram_caption
 
 from app.modules.identity.models import User
 from app.modules.marketing import crud
 
 from app.modules.marketing.models import (
     DimContent,
+    DimContentGenerationBatch,
     DimSocialAccount,
     FactMarketingPerformance,
 )
@@ -61,6 +65,8 @@ from app.modules.marketing.schemas import (
     SocialAccountListResponse,
     SocialAccountRead,
     SocialAccountUpdate,
+    WeeklyGenerationRequest,
+    ContentGenerationBatchRead,
 )
 
 
@@ -286,6 +292,173 @@ def generate_content(
 
     return content
 
+
+
+@router.post(
+    "/content/generate-weekly",
+    response_model=ContentGenerationBatchRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def generate_weekly_content(
+    request: WeeklyGenerationRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user.company_id is None:
+        raise HTTPException(status_code=403, detail="Company onboarding required")
+    if user.role not in ("admin", "user"):
+        raise HTTPException(status_code=403, detail="Your role does not permit generating AI content")
+
+    existing = db.scalar(
+        select(DimContentGenerationBatch)
+        .where(
+            DimContentGenerationBatch.company_id == user.company_id,
+            DimContentGenerationBatch.status.in_(("queued", "generating")),
+        )
+        .order_by(DimContentGenerationBatch.created_at.desc())
+    )
+    if existing:
+        posts = db.scalars(
+            select(DimContent)
+            .where(DimContent.generation_batch_id == existing.batch_id)
+            .order_by(DimContent.scheduled_at.asc())
+        ).all()
+        return {
+            "batch_id": existing.batch_id,
+            "company_id": existing.company_id,
+            "platform": existing.platform,
+            "mode": existing.mode,
+            "status": existing.status,
+            "prompt": existing.prompt,
+            "total_requested": existing.total_requested,
+            "total_created": existing.total_created,
+            "error_message": existing.error_message,
+            "created_at": existing.created_at,
+            "completed_at": existing.completed_at,
+            "posts": posts,
+        }
+
+    batch = DimContentGenerationBatch(
+        company_id=user.company_id,
+        user_id=user.user_id,
+        platform=request.platform,
+        mode=request.mode,
+        status="queued",
+        prompt=request.prompt,
+        total_requested=5,
+        total_created=0,
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    try:
+        from app.modules.marketing.tasks import generate_weekly_batch_task
+        generate_weekly_batch_task.delay(
+            str(batch.batch_id),
+            request.content_type,
+            request.instructions,
+            request.tone,
+        )
+    except Exception as exc:
+        batch.status = "failed"
+        batch.error_message = "The background generation queue is unavailable."
+        batch.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="The background generation queue is unavailable.",
+        ) from exc
+
+    return {
+        "batch_id": batch.batch_id,
+        "company_id": batch.company_id,
+        "platform": batch.platform,
+        "mode": batch.mode,
+        "status": batch.status,
+        "prompt": batch.prompt,
+        "total_requested": batch.total_requested,
+        "total_created": batch.total_created,
+        "error_message": batch.error_message,
+        "created_at": batch.created_at,
+        "completed_at": batch.completed_at,
+        "posts": [],
+    }
+
+
+@router.get(
+    "/content/batches/latest",
+    response_model=ContentGenerationBatchRead | None,
+)
+def get_latest_weekly_generation_batch(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user.company_id is None:
+        raise HTTPException(status_code=403, detail="Company onboarding required")
+
+    batch = db.scalar(
+        select(DimContentGenerationBatch)
+        .where(DimContentGenerationBatch.company_id == user.company_id)
+        .order_by(DimContentGenerationBatch.created_at.desc())
+        .limit(1)
+    )
+    if batch is None:
+        return None
+
+    posts = db.scalars(
+        select(DimContent)
+        .where(DimContent.generation_batch_id == batch.batch_id)
+        .order_by(DimContent.scheduled_at.asc(), DimContent.created_at.asc())
+    ).all()
+    return {
+        "batch_id": batch.batch_id,
+        "company_id": batch.company_id,
+        "platform": batch.platform,
+        "mode": batch.mode,
+        "status": batch.status,
+        "prompt": batch.prompt,
+        "total_requested": batch.total_requested,
+        "total_created": batch.total_created,
+        "error_message": batch.error_message,
+        "created_at": batch.created_at,
+        "completed_at": batch.completed_at,
+        "posts": posts,
+    }
+
+
+@router.get(
+    "/content/batches/{batch_id}",
+    response_model=ContentGenerationBatchRead,
+)
+def get_weekly_generation_batch(
+    batch_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    batch = db.get(DimContentGenerationBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="Generation batch not found")
+    ensure_company_access(db, user, batch.company_id)
+    posts = db.scalars(
+        select(DimContent)
+        .where(DimContent.generation_batch_id == batch_id)
+        .order_by(DimContent.scheduled_at.asc())
+    ).all()
+    return {
+        "batch_id": batch.batch_id,
+        "company_id": batch.company_id,
+        "platform": batch.platform,
+        "mode": batch.mode,
+        "status": batch.status,
+        "prompt": batch.prompt,
+        "total_requested": batch.total_requested,
+        "total_created": batch.total_created,
+        "error_message": batch.error_message,
+        "created_at": batch.created_at,
+        "completed_at": batch.completed_at,
+        "posts": posts,
+    }
 
 
 # =====================================================
@@ -560,6 +733,22 @@ def _transition_content(
                 f"status '{content.approval_status}'"
             ),
         )
+
+    if action in ("submit", "approve") and content.platform_target == "instagram":
+        image_url = (content.image_url or "").strip()
+        parsed_image_url = urlparse(image_url)
+        if parsed_image_url.scheme != "https" or not parsed_image_url.netloc:
+            raise HTTPException(
+                status_code=409,
+                detail="Instagram content needs a saved public HTTPS image before submission or approval.",
+            )
+        caption = clean_instagram_caption(content.content_text)
+        if not caption:
+            raise HTTPException(
+                status_code=409,
+                detail="Instagram content needs a non-empty caption before approval.",
+            )
+        content.caption = caption
 
     new_status = {
         "submit": "pending",

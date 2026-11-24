@@ -30,8 +30,8 @@ from app.integrations.instagram.routes import (
     router as instagram_router,
 )
 
-from app.integrations.cloudflare.routes import (
-    router as cloudflare_router,
+from app.integrations.recraft.routes import (
+    router as recraft_router,
 )
 
 from app.integrations.linkedin.routes import (
@@ -111,7 +111,7 @@ app.include_router(
 )
 
 app.include_router(
-    cloudflare_router,
+    recraft_router,
     prefix="/api/v1",
 )
 

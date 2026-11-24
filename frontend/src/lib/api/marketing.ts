@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { ContentItem, ContentListResponse, Platform } from '../../types';
+import { ContentItem, ContentListResponse, ContentGenerationBatch, Platform } from '../../types';
 
 export interface GenerateContentPayload {
   topic: string;
@@ -33,6 +33,28 @@ export const marketingApi = {
       body: JSON.stringify(payload),
       ...options,
     });
+  },
+
+  generateWeeklyPlan: async (payload: {
+    platform: Platform;
+    mode: 'automatic' | 'manual';
+    content_type: 'post' | 'article' | 'image' | 'video';
+    prompt?: string;
+    tone?: string;
+    instructions?: string;
+  }): Promise<ContentGenerationBatch> => {
+    return apiClient<ContentGenerationBatch>('/marketing/content/generate-weekly', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getWeeklyPlan: async (batchId: string): Promise<ContentGenerationBatch> => {
+    return apiClient<ContentGenerationBatch>(`/marketing/content/batches/${batchId}`);
+  },
+
+  getLatestWeeklyPlan: async (): Promise<ContentGenerationBatch | null> => {
+    return apiClient<ContentGenerationBatch | null>('/marketing/content/batches/latest');
   },
 
   createContent: async (data: {
@@ -98,13 +120,10 @@ export const marketingApi = {
   },
 
   publishToInstagram: async (
-    contentId: string,
-    payload?: { image_url?: string; image_b64?: string; caption?: string } | string
+    contentId: string
   ): Promise<{ success: boolean; media_id: string; message: string }> => {
-    const bodyObj = typeof payload === 'string' ? { image_url: payload } : (payload || {});
     return apiClient(`/integrations/instagram/publish/${contentId}`, {
       method: 'POST',
-      body: JSON.stringify(bodyObj),
     });
   },
 
@@ -128,21 +147,13 @@ export const marketingApi = {
     });
   },
 
-  getCloudflareStatus: async (): Promise<{
-    configured: boolean;
-    account_id?: string;
-    model: string;
-    message: string;
-  }> => {
-    return apiClient('/integrations/cloudflare/status');
-  },
-
-  generateCloudflareImage: async (payload: {
+  generateRecraftImage: async (payload: {
     prompt: string;
     topic?: string;
     company_name?: string;
     custom_style?: string;
     content_id?: string;
+    size?: '1:1' | '4:5' | '16:9';
   }): Promise<{
     success: boolean;
     image_url: string;
@@ -151,7 +162,7 @@ export const marketingApi = {
     model: string;
     message: string;
   }> => {
-    return apiClient('/integrations/cloudflare/generate-image', {
+    return apiClient('/integrations/recraft/generate-image', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
