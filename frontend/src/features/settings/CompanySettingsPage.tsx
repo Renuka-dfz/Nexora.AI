@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { companyApi } from '../../lib/api/company';
 import { Company } from '../../types';
-import { Building, Globe, Save, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Building, Globe, Save, RefreshCw, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export const CompanySettingsPage: React.FC = () => {
   const { companyId } = useAuth();
@@ -73,11 +73,17 @@ export const CompanySettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="pb-5 border-b border-[#E7E5E4]">
-        <h1 className="text-[28px] font-semibold tracking-tight text-[#252525] leading-tight">Company Settings</h1>
-        <p className="text-sm text-[#737373] mt-1">
-          Configure company profile, verified domain, and crawler parameters. (Admin only)
+    <div className="space-y-6 max-w-4xl">
+      {/* Page Header */}
+      <div className="pb-4 border-b border-[#EAEAE6]">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-[#171B1A]">Company Settings</h1>
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#256D58]/10 text-[#256D58] border border-[#256D58]/20">
+            Admin Governance
+          </span>
+        </div>
+        <p className="text-sm text-[#66716B] mt-0.5">
+          Configure corporate entity identity, verified root domain, and pgvector knowledge ingestion parameters.
         </p>
       </div>
 
@@ -95,82 +101,94 @@ export const CompanySettingsPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white p-6 sm:p-7 rounded-2xl border border-[#E7E5E4] shadow-xs space-y-6">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAEAE6] shadow-xs space-y-6">
         <form onSubmit={handleSave} className="space-y-5">
           <div>
-            <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
+            <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
               Company Name
             </label>
             <div className="relative">
-              <Building className="w-4 h-4 text-[#737373] absolute left-3.5 top-3" />
+              <Building className="w-4 h-4 text-[#8E9793] absolute left-3.5 top-3 pointer-events-none" />
               <input
                 type="text"
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+                className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white focus:ring-2 focus:ring-[#256D58]/15 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-              Website URL
+            <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+              Verified Website Root Domain
             </label>
             <div className="relative">
-              <Globe className="w-4 h-4 text-[#737373] absolute left-3.5 top-3" />
+              <Globe className="w-4 h-4 text-[#8E9793] absolute left-3.5 top-3 pointer-events-none" />
               <input
                 type="url"
                 required
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525] font-mono"
+                className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white focus:ring-2 focus:ring-[#256D58]/15 transition-all font-mono"
               />
             </div>
+            <p className="mt-1 text-[11px] text-[#66716B]">
+              Only subpaths under this verified root domain are accepted for automatic weekly Celery crawling.
+            </p>
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-              Industry
+            <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+              Industry Taxonomy
             </label>
             <input
               type="text"
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+              placeholder="e.g. Enterprise Cloud & Software Services"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white focus:ring-2 focus:ring-[#256D58]/15 transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[#252525] mb-1.5">
-              Company Overview & Positioning
+            <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+              Company Overview & Strategic Differentiators
             </label>
             <textarea
               rows={4}
               value={overview}
               onChange={(e) => setOverview(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525] leading-relaxed"
+              placeholder="Primary products, key customer segments, and brand tone guidelines..."
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white focus:ring-2 focus:ring-[#256D58]/15 transition-all leading-relaxed"
             />
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-[#E7E5E4]">
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] text-xs text-[#66716B]">
+            <ShieldCheck className="w-4 h-4 text-[#256D58] shrink-0 mt-0.5" />
+            <span className="text-[11px] leading-relaxed">
+              pgvector Knowledge Base: Changes to company profile will reflect in the next weekly campaign synthesis batch.
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#EAEAE6]">
             <button
               type="button"
               onClick={handleTriggerRecrawl}
               disabled={recrawling}
-              className="btn-motion inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#E7E5E4] text-xs font-semibold text-[#252525] hover:bg-[#F0EFED] cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#EAEAE6] bg-white text-xs font-semibold text-[#171B1A] hover:bg-[#FAFAF8] hover:border-[#D5D5CF] transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${recrawling ? 'animate-spin' : ''}`} />
-              <span>{recrawling ? 'Recrawling...' : 'Re-crawl Website'}</span>
+              <span>{recrawling ? 'Recrawling...' : 'Trigger Domain Re-crawl'}</span>
             </button>
 
             <button
               type="submit"
               disabled={saving}
-              className="btn-motion inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-xs font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{saving ? 'Saving...' : 'Save Settings'}</span>
+              <span>{saving ? 'Saving...' : 'Save Company Settings'}</span>
             </button>
           </div>
         </form>
@@ -178,3 +196,5 @@ export const CompanySettingsPage: React.FC = () => {
     </div>
   );
 };
+
+export default CompanySettingsPage;

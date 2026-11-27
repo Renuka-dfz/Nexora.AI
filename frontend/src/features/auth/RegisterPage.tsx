@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types';
-import { ArrowRight, Lock, Mail, AlertCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Lock,
+  Mail,
+  AlertCircle,
+  ShieldCheck,
+  Sparkles,
+  Globe,
+  RefreshCw,
+} from 'lucide-react';
 
 interface RegisterPageProps {
   onNavigate: (path: string) => void;
@@ -23,93 +32,245 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     if (password !== confirmPassword) return setError('Passwords do not match');
     setLoading(true);
     try {
-      await register(email, password, selectedRole);
+      await register(email.trim(), password.trim(), selectedRole);
       onNavigate('/onboarding');
     } catch (err: any) {
-      setError(err?.message || 'Registration failed');
+      const msg = err?.message || '';
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.includes('ERR_CONNECTION_REFUSED') ||
+        msg.includes('not running')
+      ) {
+        setError('Cannot connect to backend server at http://localhost:8000. Please ensure the backend is running.');
+      } else {
+        setError(msg || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const roles: { value: UserRole; title: string; description: string }[] = [
-    { value: 'admin', title: 'Admin', description: 'Manage workspace and approvals' },
-    { value: 'reviewer', title: 'Reviewer', description: 'Review and approve content' },
-    { value: 'user', title: 'Creator', description: 'Create and submit campaigns' },
+    { value: 'admin', title: 'Admin', description: 'Manage workspace & approvals' },
+    { value: 'reviewer', title: 'Reviewer', description: 'Inspect & sign off content' },
+    { value: 'user', title: 'Creator', description: 'Create studio campaigns' },
   ];
 
-  const inputClass = 'w-full py-3 text-sm rounded-xl border border-[#dfe7ee] bg-white text-[#252525] placeholder:text-[#98a1ae] focus:outline-none focus:border-[#1688d2] focus:ring-2 focus:ring-[#1688d2]/10';
+  const inputClass =
+    'w-full py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] placeholder:text-[#8E9793] focus:outline-none focus:border-[#256D58] focus:bg-white focus:ring-2 focus:ring-[#256D58]/15 transition-all';
 
   return (
-    <div className="nexora-auth min-h-screen bg-[#eef7fd] text-[#111827] lg:grid lg:grid-cols-[.92fr_1.08fr]">
-      <main className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
-        <div className="w-full max-w-[460px]">
-          <button onClick={() => onNavigate('/')} className="mb-7 flex items-center gap-2">
-            <div className="flex h-9 w-9 -rotate-6 items-center justify-center rounded-[11px] bg-[#087fd7] text-white"><Sparkles className="h-4 w-4" fill="currentColor" /></div>
-            <span className="text-lg font-semibold">Nexora<span className="text-[#1688d2]">.AI</span></span>
-          </button>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Start growing</p>
-          <h1 className="mt-3 text-[36px] font-medium leading-tight tracking-[-0.04em]">Create your account</h1>
-          <p className="mt-2 text-sm text-[#697386]">Build your intelligent marketing workspace.</p>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#171B1A] lg:grid lg:grid-cols-[1.1fr_1fr] font-sans antialiased selection:bg-[#256D58] selection:text-white">
+      {/* Main Registration Form */}
+      <main className="flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-md space-y-6">
+          {/* Mobile Logo Header */}
+          <div className="lg:hidden">
+            <button
+              type="button"
+              onClick={() => onNavigate('/')}
+              className="flex items-center gap-2 text-left group cursor-pointer mb-6"
+            >
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#256D58] to-[#34D399] flex items-center justify-center text-white shadow-md">
+                <Sparkles className="w-4 h-4 fill-current" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-[#171B1A]">
+                Nexora<span className="text-[#256D58]">.AI</span>
+              </span>
+            </button>
+          </div>
 
-          <div className="mt-7 rounded-[24px] border border-[#dfeaf2] bg-white p-5 shadow-[0_20px_55px_rgba(38,119,189,.10)] sm:p-7">
-            {error && <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
+          <div className="space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#256D58]">
+              Get Started
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#171B1A]">
+              Create your account
+            </h1>
+            <p className="text-xs sm:text-sm text-[#66716B]">
+              Configure your autonomous marketing workspace in minutes.
+            </p>
+          </div>
+
+          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAEAE6] shadow-sm space-y-4">
+            {error && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-2 block text-[13px] font-medium">Account role</label>
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+                  Account Role
+                </label>
                 <div className="grid grid-cols-3 gap-2">
                   {roles.map((role) => (
                     <button
                       key={role.value}
                       type="button"
                       onClick={() => setSelectedRole(role.value)}
-                      className={`rounded-xl border p-2.5 text-left transition ${selectedRole === role.value ? 'border-[#1688d2] bg-[#edf7fd] shadow-[0_6px_18px_rgba(22,136,210,.08)]' : 'border-[#e1e7ec] bg-white hover:border-[#1688d2]/50'}`}
+                      className={`rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                        selectedRole === role.value
+                          ? 'border-[#256D58] bg-[#256D58]/10 text-[#171B1A] shadow-xs'
+                          : 'border-[#EAEAE6] bg-[#FAFAF8] hover:border-[#256D58]/40 text-[#66716B]'
+                      }`}
                     >
                       <span className="block text-xs font-bold">{role.title}</span>
-                      <span className="mt-1 hidden text-[10px] leading-4 text-[#697386] sm:block">{role.description}</span>
+                      <span className="mt-0.5 hidden text-[10px] leading-3 text-[#8E9793] sm:block">
+                        {role.description}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
+
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium">Work email</label>
-                <div className="relative"><Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={`${inputClass} pl-10 pr-3.5`} /></div>
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+                  Work Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#8E9793] absolute left-3.5 top-3 pointer-events-none" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className={`${inputClass} pl-10 pr-3.5`}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium">Password</label>
-                <div className="relative"><Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" className={`${inputClass} pl-10 pr-3.5`} /></div>
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#8E9793] absolute left-3.5 top-3 pointer-events-none" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className={`${inputClass} pl-10 pr-3.5`}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium">Confirm password</label>
-                <div className="relative"><Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#8d98a6]" /><input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat your password" className={`${inputClass} pl-10 pr-3.5`} /></div>
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#8E9793] absolute left-3.5 top-3 pointer-events-none" />
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    className={`${inputClass} pl-10 pr-3.5`}
+                  />
+                </div>
               </div>
-              <div className="flex items-start gap-2.5 rounded-xl border border-[#dfeaf2] bg-[#f5faff] p-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#1688d2]" />
-                <p className="text-[11px] leading-5 text-[#697386]">Your workspace and generated campaigns remain private to your organization.</p>
+
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] text-xs text-[#66716B]">
+                <ShieldCheck className="w-4 h-4 text-[#256D58] shrink-0 mt-0.5" />
+                <span className="text-[11px] leading-relaxed">
+                  Your corporate knowledge and drafts remain private and isolated to your company.
+                </span>
               </div>
-              <button type="submit" disabled={loading} className="lime-button flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-[#172300] disabled:opacity-50">
-                {loading ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-[#172300] border-t-transparent" />Creating account...</> : <>Get Started <ArrowRight className="h-4 w-4" /></>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-sm font-semibold shadow-md shadow-[#256D58]/20 transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Creating account...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Get Started</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
-            <p className="mt-5 text-center text-sm text-[#697386]">Already have an account? <button onClick={() => onNavigate('/login')} className="font-bold text-[#1688d2] hover:underline">Sign in</button></p>
+
+            <div className="pt-2 text-center text-xs text-[#66716B]">
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => onNavigate('/login')}
+                className="font-semibold text-[#256D58] hover:underline cursor-pointer"
+              >
+                Sign in
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
-      <aside className="relative hidden overflow-hidden bg-[#087fd7] text-white lg:flex lg:flex-col lg:justify-end lg:p-12">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#087bd4,#159adf_58%,#72c3e8)]" />
-        <div className="hero-cloud hero-cloud-one" />
-        <div className="hero-cloud hero-cloud-two" />
-        <div className="relative z-10 max-w-[560px] pb-10">
-          <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#dfff75]">One intelligent workspace</p>
-          <h2 className="text-balance text-[52px] font-medium leading-[1.03] tracking-[-0.05em]">Research. Create. Grow.</h2>
-          <div className="float-card mt-10 ml-auto w-[290px] bg-white p-5 text-[#111827]">
-            <div className="flex items-center justify-between"><span className="text-xs font-bold">Campaign performance</span><Sparkles className="h-4 w-4 text-[#1688d2]" /></div>
-            <div className="mt-5 flex items-end gap-2">{[32,48,42,68,58,84,74].map((h,i)=><div key={i} className="flex-1 rounded-t bg-[#1688d2]" style={{height:h,opacity:.4+i*.08}} />)}</div>
-            <p className="mt-4 text-3xl font-bold">3.8x</p>
+      {/* Brand Hero Sidebar (Desktop) */}
+      <aside className="relative hidden lg:flex lg:flex-col lg:justify-between bg-[#0E1513] text-[#FAFAF8] p-12 overflow-hidden border-l border-white/10">
+        <div className="absolute top-1/4 right-1/4 w-[400px] h-[300px] bg-[#256D58]/20 rounded-full blur-[120px] pointer-events-none" />
+
+        <div className="relative z-10 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onNavigate('/')}
+            className="flex items-center gap-2.5 text-left group cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#256D58] to-[#34D399] flex items-center justify-center text-white shadow-md shadow-[#256D58]/30 group-hover:scale-105 transition-transform duration-200">
+              <Sparkles className="w-4 h-4 fill-current" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white flex items-center gap-1">
+              Nexora<span className="text-[#34D399]">.AI</span>
+            </span>
+          </button>
+        </div>
+
+        <div className="relative z-10 max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#34D399]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" />
+            <span>Enterprise Marketing Autopilot</span>
           </div>
+
+          <h2 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
+            Built for marketing teams demanding precision.
+          </h2>
+
+          <p className="text-sm text-[#8E9793] leading-relaxed">
+            Eliminate repetitive drafting and maintain a strong social presence across LinkedIn and Instagram without hallucinated facts.
+          </p>
+
+          <div className="pt-4 grid grid-cols-2 gap-3 border-t border-white/10">
+            <div className="p-3.5 rounded-xl bg-[#14211C] border border-white/10">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#8E9793]">Verification</div>
+              <div className="text-sm font-bold text-[#34D399] mt-0.5">Deterministic Fit</div>
+              <p className="text-[11px] text-[#8E9793] mt-1">Zero unapproved publishing</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-[#14211C] border border-white/10">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#8E9793]">Channels</div>
+              <div className="text-sm font-bold text-white mt-0.5">LinkedIn + Instagram</div>
+              <p className="text-[11px] text-[#8E9793] mt-1">Native API dispatches</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 text-xs text-[#8E9793]">
+          © {new Date().getFullYear()} DataFactZ Inc. All rights reserved.
         </div>
       </aside>
     </div>
   );
 };
+
+export default RegisterPage;

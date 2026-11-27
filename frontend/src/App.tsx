@@ -17,6 +17,11 @@ const ContentStudioPage = lazy(() =>
     default: m.ContentStudioPage,
   }))
 );
+const ReviewQueuePage = lazy(() =>
+  import('./features/approvals/ReviewQueuePage').then((m) => ({
+    default: m.ReviewQueuePage,
+  }))
+);
 const LeadsPage = lazy(() =>
   import('./features/lead-management/LeadsPage').then((m) => ({ default: m.LeadsPage }))
 );
@@ -112,7 +117,7 @@ const AppRoutes: React.FC = () => {
     if (currentPath === '/app/studio') navigate('/content-studio');
     else if (currentPath === '/app/leads') navigate('/leads');
     else if (currentPath === '/app/settings') navigate('/settings');
-    else if (currentPath === '/app/approvals' || currentPath === '/app/knowledge') navigate('/marketing');
+    else if (currentPath === '/app/knowledge') navigate('/marketing');
     else if (currentPath === '/app/team') navigate('/settings');
   }, [currentPath]);
 
@@ -199,11 +204,14 @@ const AppRoutes: React.FC = () => {
           {currentPath === '/overview' && <OverviewPage onNavigate={navigate} />}
           {currentPath === '/marketing' && <MarketingWorkspacePage onNavigate={navigate} />}
           {currentPath === '/content-studio' && <ContentStudioPage onNavigate={navigate} />}
+          {(currentPath === '/app/approvals' || currentPath === '/approvals' || currentPath === '/review-queue') && (
+            <ReviewQueuePage onNavigate={navigate} />
+          )}
           {currentPath === '/leads' && <LeadsPage />}
           {currentPath === '/settings' && <CompanySettingsPage />}
 
           {/* Fallback for undefined sub-paths inside app */}
-          {!['/overview', '/marketing', '/content-studio', '/leads', '/settings'].includes(currentPath) && (
+          {!['/overview', '/marketing', '/content-studio', '/app/approvals', '/approvals', '/review-queue', '/leads', '/settings'].includes(currentPath) && (
             <OverviewPage onNavigate={navigate} />
           )}
         </Suspense>

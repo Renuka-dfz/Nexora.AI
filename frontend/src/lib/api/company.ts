@@ -75,4 +75,15 @@ export const companyApi = {
       body: JSON.stringify({ company_id: companyId, query }),
     });
   },
+
+  getCrawledPages: async (
+    companyId: string,
+    params?: { limit?: number; offset?: number }
+  ): Promise<import('../../types').CrawlTelemetryResponse> => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.offset) query.set('offset', params.offset.toString());
+    const qs = query.toString();
+    return apiClient<import('../../types').CrawlTelemetryResponse>(`/companies/${companyId}/crawled-pages${qs ? `?${qs}` : ''}`);
+  },
 };

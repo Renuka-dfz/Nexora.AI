@@ -6,6 +6,7 @@ import {
   ContentItem,
   WebsiteCrawlJob,
   Company,
+  MarketingSummaryResponse,
 } from '../../types';
 import {
   FileText,
@@ -36,14 +37,16 @@ import {
   Sparkles,
   Square,
   Download,
+  BarChart3,
 } from 'lucide-react';
 import { GeneratedVideoReel } from '../content-studio/components/GeneratedVideoReel';
 import { InstagramFieldViewer } from '../content-studio/components/InstagramFieldViewer';
 import { parseInstagramContent } from '../content-studio/components/instagramParser';
+import { WeeklyAutomationPage } from './automation/WeeklyAutomationPage';
 
 interface MarketingWorkspacePageProps {
   onNavigate: (path: string) => void;
-  initialTab?: 'review' | 'crawl';
+  initialTab?: 'automation' | 'analytics' | 'review' | 'crawl';
 }
 
 const getDomain = (url?: string | null): string => {
@@ -64,12 +67,20 @@ const getInstagramCaption = (item: ContentItem): string => {
 
 export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   onNavigate,
-  initialTab = 'review',
+  initialTab = 'automation',
 }) => {
   const { companyId, role } = useAuth();
 
-  // Primary Workspace Tab: 'review' (Editorial Queue) | 'crawl' (Web Crawl)
-  const [activeTab, setActiveTab] = useState<'review' | 'crawl'>(initialTab);
+  // Primary Marketing Workspace Sub-Tabs: 1. Weekly Automation | 2. Analytics (plus legacy deep links)
+  const [activeTab, setActiveTab] = useState<'automation' | 'analytics' | 'review' | 'crawl'>(() => {
+    if (initialTab === 'analytics') return 'analytics';
+    if (initialTab === 'crawl') return 'crawl';
+    if (initialTab === 'review') return 'review';
+    return 'automation';
+  });
+
+  // Marketing metrics summary from backend
+  const [summary, setSummary] = useState<MarketingSummaryResponse | null>(null);
 
   // =========================================================================
   // TAB 1: EDITORIAL REVIEW QUEUE STATE
@@ -224,6 +235,11 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   useEffect(() => {
     loadContent();
     loadCompanyInfo();
+    if (companyId) {
+      marketingApi.getSummary(companyId)
+        .then((data) => setSummary(data))
+        .catch(() => {});
+    }
     marketingApi.getInstagramStatus()
       .then((st) => setInstagramStatus(st))
       .catch(() => setInstagramStatus(null));
@@ -676,66 +692,57 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
   };
 
   return (
-    <div className="marketing-theme space-y-6">
+    <div className="space-y-6">
       {/* Workspace Header */}
-      <div className="workspace-header px-5 py-5 sm:px-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="pb-5 border-b border-[#EAEAE6] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-tight leading-tight">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-[#171B1A]">
               Marketing Agent Workspace
             </h1>
-            <span className="px-2.5 py-1 text-[11px] font-bold bg-white/15 text-white rounded-full border border-white/25">
-              Multi-Stage Agent
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#256D58]/10 text-[#256D58] border border-[#256D58]/20">
+              Autonomous Weekly System
             </span>
           </div>
-          <p className="text-sm mt-2 max-w-2xl leading-relaxed text-white/78">
-            Manage crawling, company knowledge, and editorial review.
+          <p className="text-sm text-[#66716B] mt-0.5">
+            Manage automatic website crawling, weekly grounded campaign batches, and social analytics.
           </p>
         </div>
 
         {/* Primary Action: Go to Content Studio */}
         <button
           onClick={() => onNavigate('/content-studio')}
-          className="lime-button btn-motion inline-flex items-center justify-center gap-2 h-10 px-4 rounded-full text-[#172300] text-xs font-bold shadow-xs hover:shadow-md cursor-pointer shrink-0 group"
+          className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-xs font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0"
         >
-          <PenTool className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform duration-200" />
-          <span>Generate New in Studio</span>
+          <PenTool className="w-3.5 h-3.5" />
+          <span>Create in Content Studio</span>
         </button>
       </div>
 
-      {/* Workspace Tabs: Review Queue vs Web Crawl (Modern Floating Segmented Control) */}
-      <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white border border-[#E7E5E4] shadow-xs">
+      {/* Workspace Sub-Tabs: 1. Weekly Automation | 2. Analytics */}
+      <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6]">
         <button
-          onClick={() => setActiveTab('review')}
-          className={`btn-motion inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl cursor-pointer ${activeTab === 'review'
-            ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-            : 'text-[#737373] hover:text-[#252525] hover:bg-[#FAFAF9]'
-            }`}
+          onClick={() => setActiveTab('automation')}
+          className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'automation'
+              ? 'bg-white text-[#171B1A] shadow-xs border border-[#EAEAE6]'
+              : 'text-[#66716B] hover:text-[#171B1A]'
+          }`}
         >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Editorial Review Queue</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${activeTab === 'review' ? 'bg-white/20 text-white' : 'bg-[#E7E5E4] text-[#252525]'
-              }`}
-          >
-            {pendingCount}
-          </span>
+          <Sparkles className="w-3.5 h-3.5 text-[#256D58]" />
+          <span>Weekly Automation</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('crawl')}
-          className={`btn-motion inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl cursor-pointer ${activeTab === 'crawl'
-            ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-            : 'text-[#737373] hover:text-[#252525] hover:bg-[#FAFAF9]'
-            }`}
+          onClick={() => setActiveTab('analytics')}
+          className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'analytics'
+              ? 'bg-white text-[#171B1A] shadow-xs border border-[#EAEAE6]'
+              : 'text-[#66716B] hover:text-[#171B1A]'
+          }`}
         >
-          <Globe className="w-3.5 h-3.5" />
-          <span>Web Crawl Engine</span>
-          {crawlLoading && (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Ingesting
-            </span>
-          )}
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Analytics</span>
         </button>
       </div>
 
@@ -753,6 +760,197 @@ export const MarketingWorkspacePage: React.FC<MarketingWorkspacePageProps> = ({
           <span>{successMsg}</span>
         </div>
       )}
+
+      {/* =========================================================================
+          SUB-TAB 1: WEEKLY AUTOMATION
+          ========================================================================= */}
+      {activeTab === 'automation' && (
+        <WeeklyAutomationPage
+          onNavigateToStudio={() => onNavigate('/content-studio')}
+        />
+      )}
+
+      {/* =========================================================================
+          SUB-TAB 2: ANALYTICS (Live dynamic metrics from pgvector & content store)
+          ========================================================================= */}
+      {activeTab === 'analytics' && (() => {
+        const totalPosts = summary ? summary.generated_posts : items.length;
+        const approvedPosts = items.filter((i) => i.approval_status === 'approved').length;
+        const scheduledPosts = summary
+          ? summary.scheduled_posts
+          : items.filter((i) => i.publish_status === 'scheduled' || i.publish_status === 'published').length;
+        const publishedPosts = items.filter((i) => i.publish_status === 'published').length;
+        const pendingPosts = summary
+          ? summary.pending_reviews
+          : items.filter((i) => i.approval_status === 'pending').length;
+        const rejectedPosts = items.filter((i) => i.approval_status === 'rejected').length;
+        const linkedinPosts = items.filter(
+          (i) => i.platform_target?.toLowerCase() === 'linkedin'
+        ).length;
+        const instagramPosts = items.filter(
+          (i) => i.platform_target?.toLowerCase() === 'instagram'
+        ).length;
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Top Metrics Cards: Real Live Dynamic Data */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-[#EAEAE6] shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#66716B] block mb-1">
+                  Generated Posts
+                </span>
+                <div className="text-2xl font-bold text-[#171B1A]">{totalPosts}</div>
+                <p className="text-[11px] text-[#256D58] font-medium mt-1">
+                  {linkedinPosts} LinkedIn • {instagramPosts} Instagram
+                </p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-[#EAEAE6] shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#66716B] block mb-1">
+                  Scheduled & Published
+                </span>
+                <div className="text-2xl font-bold text-[#171B1A]">{scheduledPosts}</div>
+                <p className="text-[11px] text-blue-700 font-medium mt-1">
+                  {publishedPosts} Published • {Math.max(0, scheduledPosts - publishedPosts)} Queued
+                </p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-[#EAEAE6] shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#66716B] block mb-1">
+                  Approval Governance
+                </span>
+                <div className="text-2xl font-bold text-[#171B1A]">{approvedPosts} Approved</div>
+                <p className="text-[11px] text-[#66716B] mt-1">
+                  {pendingPosts} Pending Review • {rejectedPosts} Rejected
+                </p>
+              </div>
+            </div>
+
+            {/* Performance Telemetry */}
+            <div className="bg-white p-6 rounded-2xl border border-[#EAEAE6] shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-[#171B1A]">Social Reach & Performance</h3>
+                  <p className="text-xs text-[#66716B] mt-0.5">
+                    Live analytics synced from connected platform APIs upon post publication.
+                  </p>
+                </div>
+                <span className="text-xs font-mono text-[#8E9793] bg-[#FAFAF8] px-2.5 py-1 rounded-lg border border-[#EAEAE6] self-start sm:self-auto">
+                  pgvector + Star Schema
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6]">
+                  <span className="text-[10px] uppercase font-semibold text-[#8E9793] block">
+                    Total Impressions
+                  </span>
+                  <span className="text-lg font-bold text-[#171B1A]">
+                    {publishedPosts > 0 ? 'Syncing...' : '—'}
+                  </span>
+                  <span className="text-[10px] text-[#8E9793] block mt-0.5">
+                    {publishedPosts > 0 ? 'Live platform telemetry' : 'No posts published yet'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6]">
+                  <span className="text-[10px] uppercase font-semibold text-[#8E9793] block">
+                    Audience Reach
+                  </span>
+                  <span className="text-lg font-bold text-[#171B1A]">
+                    {publishedPosts > 0 ? 'Syncing...' : '—'}
+                  </span>
+                  <span className="text-[10px] text-[#8E9793] block mt-0.5">
+                    {publishedPosts > 0 ? 'Unique accounts reached' : 'Awaiting published posts'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6]">
+                  <span className="text-[10px] uppercase font-semibold text-[#8E9793] block">
+                    Total Engagements
+                  </span>
+                  <span className="text-lg font-bold text-[#171B1A]">
+                    {publishedPosts > 0 ? 'Syncing...' : '—'}
+                  </span>
+                  <span className="text-[10px] text-[#8E9793] block mt-0.5">
+                    {publishedPosts > 0 ? 'Likes, comments & shares' : 'Awaiting published posts'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6]">
+                  <span className="text-[10px] uppercase font-semibold text-[#8E9793] block">
+                    Engagement Rate
+                  </span>
+                  <span className="text-lg font-bold text-[#171B1A]">
+                    {publishedPosts > 0 ? 'Syncing...' : '—'}
+                  </span>
+                  <span className="text-[10px] text-[#8E9793] block mt-0.5">
+                    {publishedPosts > 0 ? 'Interactions per impression' : 'Awaiting published posts'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Connected Social Channels */}
+            <div className="bg-white p-6 rounded-2xl border border-[#EAEAE6] shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-[#171B1A]">Connected Social Channels</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#0077B5]/10 text-[#0077B5] flex items-center justify-center font-bold text-xs">
+                      in
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#171B1A]">LinkedIn Company Page</h4>
+                      <p className="text-[11px] text-[#66716B]">
+                        {linkedinStatus?.connected
+                          ? linkedinStatus.account_name || 'Connected & Authorized'
+                          : 'Not connected. Configure in Settings.'}
+                      </p>
+                    </div>
+                  </div>
+                  {linkedinStatus?.connected ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#EAEAE6] text-[#66716B]">
+                      Disconnected
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#E1306C]/10 text-[#E1306C] flex items-center justify-center font-bold text-xs">
+                      ig
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#171B1A]">Instagram Professional</h4>
+                      <p className="text-[11px] text-[#66716B]">
+                        {instagramStatus?.connected
+                          ? instagramStatus.account_username
+                            ? `@${instagramStatus.account_username}`
+                            : 'Connected & Authorized'
+                          : 'Not connected. Configure in Settings.'}
+                      </p>
+                    </div>
+                  </div>
+                  {instagramStatus?.connected ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#EAEAE6] text-[#66716B]">
+                      Disconnected
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* =========================================================================
           TAB 1 CONTENT: EDITORIAL REVIEW QUEUE

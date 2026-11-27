@@ -76,8 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authApi.login(email, pass);
       sessionStorage.setItem('nexora_token', res.access_token);
       setToken(res.access_token);
-      const profile = await authApi.getMe();
-      setUser(profile);
+      if (res.user) {
+        setUser(res.user);
+      } else {
+        const profile = await authApi.getMe();
+        setUser(profile);
+      }
     } finally {
       setIsLoading(false);
     }

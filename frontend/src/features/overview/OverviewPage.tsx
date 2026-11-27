@@ -6,11 +6,17 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
+  Calendar,
   CheckCircle2,
+  Database,
   Globe2,
+  Layers,
   Loader2,
+  PenTool,
   Search,
+  ShieldCheck,
   Sparkles,
+  TrendingUp,
   UserCheck,
   X,
   Zap,
@@ -89,133 +95,311 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
   };
 
   const displayName = company?.company_name || authCompanyName || 'Your Organization';
-  const progress = crawlState === 'success'
-    ? 100
-    : Math.min(88, 18 + pagesProcessed * 7 + sectionsSaved * 3);
+  const progress =
+    crawlState === 'success'
+      ? 100
+      : Math.min(88, 18 + pagesProcessed * 7 + sectionsSaved * 3);
 
   return (
-    <div className="space-y-7 pb-10">
-      <section className="relative min-h-[390px] overflow-hidden rounded-[28px] bg-[#087fd7] text-white">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#087bd4_0%,#159adf_55%,#75c3e6_100%)]" />
-        <div className="absolute right-[-80px] top-[-100px] h-[300px] w-[300px] rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute bottom-[-100px] left-[35%] h-[230px] w-[380px] rounded-[100%] bg-white/10 blur-xl" />
+    <div className="space-y-8 pb-12">
+      {/* =========================================================================
+          HERO BANNER: Warm Ivory & Forest Green Luxury Workspace Framing
+          ========================================================================= */}
+      <section className="relative overflow-hidden rounded-3xl bg-[#14211C] text-white p-7 sm:p-10 border border-[#256D58]/30 shadow-xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#256D58]/20 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-[#34D399]/10 rounded-full blur-[80px] pointer-events-none" />
 
-        <div className="relative z-10 flex min-h-[390px] flex-col justify-between px-6 py-7 sm:px-9 lg:flex-row lg:items-center lg:px-12">
-          <div className="max-w-[560px]">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-[#dfff75]" />
-              Marketing Agent
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+          <div className="max-w-xl space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-semibold text-[#34D399] backdrop-blur-xs">
+              <Sparkles className="w-3.5 h-3.5 fill-current" />
+              <span>Autonomous Marketing System</span>
             </div>
-            <h1 className="text-balance text-[42px] font-medium leading-[1.02] tracking-[-0.055em] sm:text-[58px]">
-              Your AI Marketing Agent <span className="text-[#dfff75]">Is Ready.</span>
+
+            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+              Welcome to {displayName}. <br />
+              <span className="text-[#34D399]">Your Marketing Agent is Active.</span>
             </h1>
-            <p className="mt-5 max-w-[520px] text-pretty text-sm leading-6 text-white/78 sm:text-base">
-              Turn your company knowledge into authentic marketing content. Let AI research your brand and create content that connects.
+
+            <p className="text-xs sm:text-sm text-[#8E9793] leading-relaxed">
+              Ground your marketing campaigns in verified corporate knowledge via pgvector embeddings. Plan weekly batches, generate branded visual assets, and enforce human approval before dispatch.
             </p>
-            <button
-              type="button"
-              onClick={() => onNavigate('/crawl')}
-              className="lime-button mt-7 inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-[#172300]"
-            >
-              Start Website Crawling <ArrowRight className="h-4 w-4" />
-            </button>
+
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onNavigate('/marketing')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-xs font-semibold shadow-md shadow-[#256D58]/25 transition-all cursor-pointer"
+              >
+                <span>Launch Weekly Automation</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('/content-studio')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-semibold transition-all cursor-pointer"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Open Content Studio</span>
+              </button>
+            </div>
           </div>
 
-          <div className="relative mt-10 h-[210px] w-full max-w-[390px] self-end lg:mt-0">
-            <div className="float-card absolute right-0 top-0 w-[190px] rounded-[18px] bg-white p-4 text-[#111827]">
-              <div className="flex items-center justify-between"><p className="text-xs font-bold">Campaign growth</p><BarChart3 className="h-4 w-4 text-[#1688d2]" /></div>
-              <p className="mt-5 text-3xl font-bold">+42%</p>
-              <div className="mt-4 flex h-10 items-end gap-1">{[35,48,42,68,58,82,74].map((h,i)=><div key={i} className="flex-1 rounded-t bg-[#1688d2]" style={{height:`${h}%`,opacity:.4+i*.07}} />)}</div>
+          {/* Quick Engine Telemetry Card */}
+          <div className="w-full lg:w-80 rounded-2xl bg-[#1A2A24] border border-white/10 p-5 space-y-3.5 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                System Telemetry
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-[#34D399] border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" />
+                Operational
+              </span>
             </div>
-            <div className="float-card float-mid absolute bottom-0 left-0 w-[210px] rounded-[18px] border border-white/70 bg-[#101827]/95 p-4 text-white">
-              <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#dfff75] text-[#172300]"><Sparkles className="h-4 w-4" /></div><div><p className="text-[10px] text-white/55">AI STATUS</p><p className="text-sm font-semibold">Ready to create</p></div></div>
-              <div className="mt-4 h-1.5 rounded-full bg-white/10"><div className="h-full w-4/5 rounded-full bg-[#dfff75]" /></div>
+
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-white/5 flex items-center justify-between">
+                <span className="text-[#8E9793]">Knowledge Store:</span>
+                <span className="font-semibold text-white">PostgreSQL pgvector</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 flex items-center justify-between">
+                <span className="text-[#8E9793]">Weekly Cadence:</span>
+                <span className="font-semibold text-white">5 Posts / Week</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 flex items-center justify-between">
+                <span className="text-[#8E9793]">Publishing Gate:</span>
+                <span className="font-semibold text-[#34D399]">Human Approval Required</span>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setCrawlOpen(true)}
+              className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white text-center transition-colors cursor-pointer"
+            >
+              Configure Website Knowledge
+            </button>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
-        <article className="rounded-[24px] border border-[#dfeaf2] bg-white p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#087fd7] text-white"><Sparkles className="h-5 w-5" /></div>
-              <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1688d2]">Marketing Agent</p><h2 className="mt-1 text-xl font-semibold">Create grounded campaigns</h2></div>
+      {/* =========================================================================
+          CORE CAPABILITY TILES: 3 Clean Structured Cards
+          ========================================================================= */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Card 1: Marketing Agent */}
+        <div className="bg-white p-6 rounded-2xl border border-[#EAEAE6] shadow-xs flex flex-col justify-between hover:border-[#256D58]/40 transition-all">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-[#256D58]/10 text-[#256D58] flex items-center justify-center font-bold">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf8ff] px-2.5 py-1 text-xs font-medium text-[#1688d2]"><span className="h-1.5 w-1.5 rounded-full bg-[#1688d2]" />Active</span>
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#66716B]">
+                Engine 01
+              </span>
+              <h3 className="text-base font-bold text-[#171B1A]">Weekly Automation</h3>
+            </div>
+            <p className="text-xs text-[#66716B] leading-relaxed">
+              Celery Beat continuously crawls your domain, drafts 5 weekly multi-channel posts, and stages them for your review.
+            </p>
           </div>
-          <p className="mt-5 max-w-[620px] text-sm leading-6 text-[#697386]">Transform verified company knowledge into platform-ready LinkedIn and Instagram posts, complete with captions and AI visuals.</p>
-          <button type="button" onClick={() => onNavigate('/content-studio')} className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#087fd7] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#076db8]">Generate a Post <ArrowRight className="h-4 w-4" /></button>
-        </article>
 
-        <article className="rounded-[24px] border border-[#dfeaf2] bg-[#f5faff] p-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#dfff75] text-[#172300]"><UserCheck className="h-5 w-5" /></div>
-          <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-[#697386]">Lead Agent</p>
-          <h2 className="mt-2 text-xl font-semibold">Focus on real buyers</h2>
-          <button type="button" onClick={() => onNavigate('/leads')} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#1688d2]">Open Leads <ArrowRight className="h-4 w-4" /></button>
-        </article>
+          <button
+            type="button"
+            onClick={() => onNavigate('/marketing')}
+            className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#256D58] hover:underline cursor-pointer"
+          >
+            <span>Open Weekly Automation</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Card 2: Content Studio */}
+        <div className="bg-white p-6 rounded-2xl border border-[#EAEAE6] shadow-xs flex flex-col justify-between hover:border-[#256D58]/40 transition-all">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+              <PenTool className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#66716B]">
+                Engine 02
+              </span>
+              <h3 className="text-base font-bold text-[#171B1A]">Content Studio</h3>
+            </div>
+            <p className="text-xs text-[#66716B] leading-relaxed">
+              Generate on-demand LinkedIn articles, Instagram carousels, and visual graphic assets with grounded brand guidance.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('/content-studio')}
+            className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline cursor-pointer"
+          >
+            <span>Launch Content Studio</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Card 3: Lead Intelligence */}
+        <div className="bg-white p-6 rounded-2xl border border-[#EAEAE6] shadow-xs flex flex-col justify-between hover:border-[#256D58]/40 transition-all">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#66716B]">
+                Engine 03
+              </span>
+              <h3 className="text-base font-bold text-[#171B1A]">Lead Intelligence</h3>
+            </div>
+            <p className="text-xs text-[#66716B] leading-relaxed">
+              Capture, qualify, and score inbound sales prospects using AI analysis based on company industry fit and deal size.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('/leads')}
+            className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline cursor-pointer"
+          >
+            <span>View Inbound Leads</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </section>
 
+      {/* =========================================================================
+          CRAWL SETUP MODAL (Grounded Domain Setup)
+          ========================================================================= */}
       {crawlOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#071827]/45 p-4 backdrop-blur-sm">
-          <div className="relative max-h-[92vh] w-full max-w-[900px] overflow-y-auto rounded-[28px] border border-white/50 bg-white shadow-[0_30px_80px_rgba(7,54,95,.28)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#EAEAE6] bg-white p-6 sm:p-7 shadow-2xl my-auto">
             {crawlState === 'idle' && (
-              <form onSubmit={startCrawl} className="p-6 sm:p-8">
-                <div className="flex items-start justify-between gap-4">
-                  <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Website setup</p><h2 className="mt-2 text-3xl font-medium tracking-[-0.04em]">Start with your website</h2></div>
-                  <button type="button" onClick={() => setCrawlOpen(false)} className="rounded-full border border-[#dfe7ee] p-2 text-[#697386] hover:bg-[#f5faff]"><X className="h-5 w-5" /></button>
+              <form onSubmit={startCrawl} className="space-y-4">
+                <div className="flex items-start justify-between pb-3 border-b border-[#EAEAE6]">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#256D58]">
+                      Knowledge Ingestion
+                    </span>
+                    <h3 className="text-lg font-bold text-[#171B1A] mt-1">
+                      Configure Company Website
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCrawlOpen(false)}
+                    className="p-1 rounded-lg text-[#66716B] hover:text-[#171B1A] hover:bg-[#F4F4F0]"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-[#697386]">Nexora will securely crawl and index your public pages for grounded AI marketing.</p>
-                <label className="mt-7 block text-sm font-bold">Company website URL</label>
-                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#dfe7ee] px-4 focus-within:border-[#1688d2] focus-within:ring-2 focus-within:ring-[#1688d2]/10">
-                  <Globe2 className="h-5 w-5 text-[#1688d2]" />
-                  <input type="url" required value={crawlUrl} onChange={(e)=>setCrawlUrl(e.target.value)} placeholder="https://yourcompany.com" className="min-h-14 w-full bg-transparent text-sm outline-none" />
+
+                <p className="text-xs text-[#66716B] leading-relaxed">
+                  Nexora will crawl and index your registered public website weekly to ground all AI marketing campaigns in real corporate context.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#171B1A]">
+                    Registered Website URL *
+                  </label>
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] focus-within:border-[#256D58] focus-within:bg-white transition-all">
+                    <Globe2 className="w-4 h-4 text-[#256D58] shrink-0" />
+                    <input
+                      type="url"
+                      required
+                      value={crawlUrl}
+                      onChange={(e) => setCrawlUrl(e.target.value)}
+                      placeholder="https://yourcompany.com"
+                      className="w-full bg-transparent text-xs text-[#171B1A] outline-none"
+                    />
+                  </div>
                 </div>
-                {crawlError && <p className="mt-3 text-sm text-red-600">{crawlError}</p>}
-                <button type="submit" className="lime-button mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-[#172300]"><Search className="h-4 w-4" /> Start Website Crawl</button>
+
+                {crawlError && (
+                  <p className="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200">
+                    {crawlError}
+                  </p>
+                )}
+
+                <div className="pt-3 border-t border-[#EAEAE6] flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCrawlOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[#EAEAE6] text-xs font-semibold text-[#171B1A] hover:bg-[#F4F4F0]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-xs font-semibold shadow-xs"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Start Ingestion Crawl</span>
+                  </button>
+                </div>
               </form>
             )}
 
             {crawlState === 'running' && (
-              <div className="p-6 sm:p-8">
-                <div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Active ingestion pipeline</p><h2 className="mt-2 text-3xl font-medium tracking-[-0.04em]">Crawling your website</h2></div><Loader2 className="h-7 w-7 animate-spin text-[#1688d2]" /></div>
-                <div className="mt-6 rounded-2xl border border-[#dfeaf2] bg-[#f7fbfd] p-5">
-                  <div className="flex items-center justify-between text-sm"><span className="font-semibold">{crawlUrl}</span><span className="font-bold text-[#1688d2]">{progress}%</span></div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dfeaf2]"><div className="h-full rounded-full bg-[#1688d2] transition-all duration-700" style={{width:`${progress}%`}} /></div>
-                  <div className="mt-3 flex gap-5 text-xs text-[#697386]"><span>{pagesProcessed} pages processed</span><span>{sectionsSaved} sections saved</span></div>
+              <div className="space-y-4 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#256D58]">
+                      Ingestion In Progress
+                    </span>
+                    <h3 className="text-lg font-bold text-[#171B1A]">Crawling Website...</h3>
+                  </div>
+                  <Loader2 className="w-6 h-6 animate-spin text-[#256D58]" />
                 </div>
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                  {[
-                    ['Crawling','Sitemap & seeds'],
-                    ['Inspecting','DOM & status'],
-                    ['Extracting','Clean page text'],
-                    ['Cleaning','Boilerplate filter'],
-                    ['Classifying','16 categories'],
-                    ['Saving','pgvector index'],
-                  ].map(([title,detail],index)=>{
-                    const reached = crawlState === 'running' && index <= Math.min(5,Math.floor(progress/18));
-                    return <div key={title} className={`rounded-xl border p-3 ${reached?'border-[#1688d2]/30 bg-[#edf7fd]':'border-[#e5eaef] bg-white'}`}><span className={`text-[10px] font-bold ${reached?'text-[#1688d2]':'text-[#697386]'}`}>0{index+1}. {title}</span><p className="mt-2 text-[11px] leading-4 text-[#697386]">{detail}</p></div>
-                  })}
+
+                <div className="p-4 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[#171B1A]">{crawlUrl}</span>
+                    <span className="font-bold text-[#256D58]">{progress}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#EAEAE6] overflow-hidden">
+                    <div
+                      className="h-full bg-[#256D58] transition-all duration-500 rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="flex gap-4 text-[11px] text-[#66716B] pt-1">
+                    <span>{pagesProcessed} pages processed</span>
+                    <span>{sectionsSaved} pgvector chunks saved</span>
+                  </div>
                 </div>
               </div>
             )}
 
             {crawlState === 'success' && (
-              <div className="p-10 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#dfff75] text-[#172300]"><CheckCircle2 className="h-8 w-8" /></div>
-                <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-[#1688d2]">Crawl complete</p>
-                <h2 className="mt-2 text-4xl font-medium tracking-[-0.04em]">Website crawled successfully</h2>
-                <p className="mt-3 text-sm text-[#697386]">{pagesProcessed} pages processed · {sectionsSaved} sections indexed</p>
-                <p className="mt-6 text-xs font-medium text-[#697386]">Opening Generate Post...</p>
+              <div className="text-center py-6 space-y-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-[#171B1A]">Website Crawled Successfully</h3>
+                <p className="text-xs text-[#66716B]">
+                  {pagesProcessed} pages indexed • {sectionsSaved} sections stored in pgvector.
+                </p>
+                <p className="text-xs font-medium text-[#256D58] pt-2">Opening Content Studio...</p>
               </div>
             )}
 
             {crawlState === 'failed' && (
-              <div className="p-8 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600"><X className="h-7 w-7" /></div>
-                <h2 className="mt-5 text-2xl font-semibold">Crawl could not start</h2>
-                <p className="mt-2 text-sm text-red-600">{crawlError}</p>
-                <button type="button" onClick={()=>setCrawlState('idle')} className="lime-button mt-6 rounded-full px-6 py-3 text-sm font-bold text-[#172300]">Try Again</button>
+              <div className="text-center py-6 space-y-3">
+                <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+                  <X className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-[#171B1A]">Crawl Encountered An Error</h3>
+                <p className="text-xs text-rose-600">{crawlError}</p>
+                <button
+                  type="button"
+                  onClick={() => setCrawlState('idle')}
+                  className="px-5 py-2 rounded-xl bg-[#256D58] text-white text-xs font-semibold"
+                >
+                  Try Again
+                </button>
               </div>
             )}
           </div>
@@ -224,3 +408,5 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+
+export default OverviewPage;

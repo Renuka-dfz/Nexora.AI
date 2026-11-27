@@ -182,3 +182,43 @@ export interface Qualification {
   recommended_action?: string;
   evaluated_at: string;
 }
+
+export interface CrawledPageItem {
+  page_id: string;
+  page_url: string;
+  title: string;
+  meta_description?: string | null;
+  crawl_status: 'success' | 'failed' | 'skipped' | string;
+  change_status: 'changed' | 'unchanged' | 'failed';
+  crawled_at: string | null;
+  error_message?: string | null;
+}
+
+export interface CrawlTelemetryResponse {
+  company_id: string;
+  total: number;
+  items: CrawledPageItem[];
+  summary: {
+    total_pages: number;
+    changed_count: number;
+    unchanged_count: number;
+    failed_count: number;
+  };
+  latest_job?: {
+    job_id: string | null;
+    status: string;
+    pages_crawled: number;
+    started_at?: string | null;
+    finished_at?: string | null;
+    error_message?: string | null;
+  } | null;
+}
+
+export interface MarketingSummaryResponse {
+  company_id: string;
+  crawled_pages: number;
+  generated_posts: number;
+  scheduled_posts: number;
+  pending_reviews: number;
+}
+

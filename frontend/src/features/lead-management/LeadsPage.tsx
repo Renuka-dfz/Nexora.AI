@@ -16,6 +16,7 @@ import {
   Search,
   Filter,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const LeadsPage: React.FC = () => {
@@ -128,29 +129,29 @@ export const LeadsPage: React.FC = () => {
   const convertedCount = leads.filter((l) => l.lead_status === 'converted').length;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-6xl">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E7E5E4]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EAEAE6]">
         <div>
-          <h1 className="text-[28px] font-semibold text-[#252525] tracking-tight leading-tight flex items-center gap-2.5">
-            <span>Lead Qualification Workspace</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-[#171B1A]">Lead Intelligence</h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Deterministic Fit
             </span>
-          </h1>
-          <p className="text-sm text-[#737373] mt-1">
-            Evaluate inbound prospects against your verified company service scope using mathematical 0–100 scoring.
+          </div>
+          <p className="text-sm text-[#66716B] mt-0.5">
+            Evaluate inbound prospects against your verified company service scope using deterministic 0–100 scoring.
           </p>
         </div>
 
         {canManage && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="btn-motion inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] shadow-xs hover:shadow-md cursor-pointer shrink-0 group"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[#256D58] text-white text-xs font-semibold hover:bg-[#1E5846] shadow-sm hover:shadow-md transition-all cursor-pointer shrink-0"
           >
-            <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-            <span>Ingest New Lead</span>
+            <UserPlus className="w-4 h-4" />
+            <span>Ingest New Prospect</span>
           </button>
         )}
       </div>
@@ -170,21 +171,21 @@ export const LeadsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Control Bar: Floating Segmented Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-[#E7E5E4] shadow-xs">
+      {/* Control Bar: Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-[#EAEAE6] shadow-xs">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
             onClick={() => setStatusTab('all')}
-            className={`btn-motion px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
               statusTab === 'all'
-                ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-                : 'bg-[#FAFAF9] text-[#737373] border border-[#E7E5E4] hover:text-[#252525] hover:border-[#D6D3D1] hover:bg-white'
+                ? 'bg-[#256D58] text-white shadow-xs'
+                : 'bg-[#FAFAF8] text-[#66716B] border border-[#EAEAE6] hover:text-[#171B1A] hover:bg-white'
             }`}
           >
             <span>All Prospects</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                statusTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#E7E5E4] text-[#252525]'
+                statusTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#EAEAE6] text-[#171B1A]'
               }`}
             >
               {leads.length}
@@ -193,16 +194,16 @@ export const LeadsPage: React.FC = () => {
 
           <button
             onClick={() => setStatusTab('active')}
-            className={`btn-motion px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
               statusTab === 'active'
-                ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-                : 'bg-[#FAFAF9] text-[#737373] border border-[#E7E5E4] hover:text-[#252525] hover:border-[#D6D3D1] hover:bg-white'
+                ? 'bg-[#256D58] text-white shadow-xs'
+                : 'bg-[#FAFAF8] text-[#66716B] border border-[#EAEAE6] hover:text-[#171B1A] hover:bg-white'
             }`}
           >
             <span>Active Pipeline</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                statusTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#E7E5E4] text-[#252525]'
+                statusTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#EAEAE6] text-[#171B1A]'
               }`}
             >
               {activeCount}
@@ -211,16 +212,16 @@ export const LeadsPage: React.FC = () => {
 
           <button
             onClick={() => setStatusTab('converted')}
-            className={`btn-motion px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
               statusTab === 'converted'
-                ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-                : 'bg-[#FAFAF9] text-[#737373] border border-[#E7E5E4] hover:text-[#252525] hover:border-[#D6D3D1] hover:bg-white'
+                ? 'bg-[#256D58] text-white shadow-xs'
+                : 'bg-[#FAFAF8] text-[#66716B] border border-[#EAEAE6] hover:text-[#171B1A] hover:bg-white'
             }`}
           >
             <span>Converted Clients</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                statusTab === 'converted' ? 'bg-white/20 text-white' : 'bg-[#E7E5E4] text-[#252525]'
+                statusTab === 'converted' ? 'bg-white/20 text-white' : 'bg-[#EAEAE6] text-[#171B1A]'
               }`}
             >
               {convertedCount}
@@ -228,25 +229,25 @@ export const LeadsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="relative min-w-[200px]">
-          <Search className="w-3.5 h-3.5 text-[#737373] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="relative min-w-[220px]">
+          <Search className="w-3.5 h-3.5 text-[#8E9793] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search prospects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[#E7E5E4] bg-white text-[#252525] placeholder:text-[#737373]/60 focus:outline-none focus:border-[#252525] transition-colors"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] placeholder:text-[#8E9793] focus:outline-none focus:border-[#256D58] focus:bg-white transition-all"
           />
         </div>
       </div>
 
       {/* Leads Table */}
-      <div className="bg-white rounded-2xl border border-[#E7E5E4] shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-[#E7E5E4] flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-[#252525]">
+      <div className="bg-white rounded-2xl border border-[#EAEAE6] shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-[#EAEAE6] flex items-center justify-between">
+          <h2 className="text-sm font-bold text-[#171B1A]">
             Tracked Prospects ({filteredLeads.length})
           </h2>
-          <span className="text-xs text-[#737373] font-mono text-[11px]">
+          <span className="text-xs text-[#8E9793] font-mono text-[11px]">
             Deterministic 0–100 Scoring Enabled
           </span>
         </div>
@@ -254,50 +255,50 @@ export const LeadsPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[#FAFAF9] border-b border-[#E7E5E4] text-[#737373] uppercase font-semibold text-[11px] tracking-wider">
+              <tr className="bg-[#FAFAF8] border-b border-[#EAEAE6] text-[#8E9793] uppercase font-semibold text-[11px] tracking-wider">
                 <th className="py-3 px-5">Prospect</th>
                 <th className="py-3 px-5">Organization</th>
-                <th className="py-3 px-5">Title</th>
+                <th className="py-3 px-5">Job Title</th>
                 <th className="py-3 px-5">Status</th>
                 <th className="py-3 px-5 text-right">Agent Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E5E4]">
+            <tbody className="divide-y divide-[#EAEAE6]">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-[#737373]">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[#252525] mb-2" />
+                  <td colSpan={5} className="py-12 text-center text-[#66716B]">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[#256D58] mb-2" />
                     <span>Loading prospects...</span>
                   </td>
                 </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-[#737373]">
+                  <td colSpan={5} className="py-12 text-center text-[#8E9793]">
                     No leads found matching your active filter. Ingest an inbound prospect to evaluate qualification fit.
                   </td>
                 </tr>
               ) : (
                 filteredLeads.map((l) => (
-                  <tr key={l.lead_id} className="hover:bg-[#FAFAF9] transition-colors">
+                  <tr key={l.lead_id} className="hover:bg-[#FAFAF8] transition-colors">
                     <td className="py-3.5 px-5">
-                      <div className="font-semibold text-[#252525]">{l.full_name || 'Anonymous Prospect'}</div>
-                      {l.email && <div className="text-[11px] text-[#737373] font-mono">{l.email}</div>}
+                      <div className="font-semibold text-[#171B1A]">{l.full_name || 'Anonymous Prospect'}</div>
+                      {l.email && <div className="text-[11px] text-[#8E9793] font-mono">{l.email}</div>}
                     </td>
 
-                    <td className="py-3.5 px-5 font-medium text-[#252525]">
+                    <td className="py-3.5 px-5 font-medium text-[#171B1A]">
                       {l.organization_name || '—'}
                     </td>
 
-                    <td className="py-3.5 px-5 text-[#737373]">
+                    <td className="py-3.5 px-5 text-[#66716B]">
                       {l.job_title || '—'}
                     </td>
 
                     <td className="py-3.5 px-5">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium capitalize ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
                           l.lead_status === 'converted'
                             ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-[#F0EFED] text-[#252525] border border-[#E7E5E4]'
+                            : 'bg-[#FAFAF8] text-[#171B1A] border border-[#EAEAE6]'
                         }`}
                       >
                         {l.lead_status}
@@ -312,10 +313,10 @@ export const LeadsPage: React.FC = () => {
                             setEvaluationResult(null);
                             setInquiryText('');
                           }}
-                          className="btn-motion inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E7E5E4] hover:border-[#252525] text-xs font-semibold text-[#252525] hover:bg-[#F0EFED] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#EAEAE6] hover:border-[#256D58] text-xs font-semibold text-[#171B1A] hover:bg-[#256D58]/5 hover:text-[#256D58] transition-colors cursor-pointer"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Evaluate with Agent</span>
+                          <Sparkles className="w-3.5 h-3.5 text-[#256D58]" />
+                          <span>Evaluate Fit</span>
                         </button>
                       )}
                     </td>
@@ -329,13 +330,13 @@ export const LeadsPage: React.FC = () => {
 
       {/* Add Lead Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-[#252525]/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#E7E5E4] space-y-4 animate-in slide-in-from-bottom-2 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E7E5E4]">
-              <h3 className="text-base font-semibold text-[#252525]">Ingest Inbound Lead</h3>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#EAEAE6] space-y-4 animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#EAEAE6]">
+              <h3 className="text-base font-bold text-[#171B1A]">Ingest Inbound Lead</h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="btn-motion text-[#737373] hover:text-[#252525] p-1 rounded-md"
+                className="text-[#8E9793] hover:text-[#171B1A] p-1 rounded-md cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -343,7 +344,7 @@ export const LeadsPage: React.FC = () => {
 
             <form onSubmit={handleCreateLead} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#252525] mb-1.5">
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
                   Full Name *
                 </label>
                 <input
@@ -352,12 +353,12 @@ export const LeadsPage: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Alex Morgan"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#252525] mb-1.5">
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
                   Work Email
                 </label>
                 <input
@@ -365,12 +366,12 @@ export const LeadsPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="alex.morgan@company.com"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#252525] mb-1.5">
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
                   Organization
                 </label>
                 <input
@@ -378,12 +379,12 @@ export const LeadsPage: React.FC = () => {
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   placeholder="e.g. Global Tech Solutions"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#252525] mb-1.5">
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
                   Job Title
                 </label>
                 <input
@@ -391,24 +392,24 @@ export const LeadsPage: React.FC = () => {
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
                   placeholder="e.g. Engineering Director"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525]"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E7E5E4]">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#EAEAE6]">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="btn-motion px-4 py-2 text-xs font-semibold text-[#737373] hover:text-[#252525] cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-[#EAEAE6] text-xs font-semibold text-[#66716B] hover:bg-[#FAFAF8] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="btn-motion px-5 py-2 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#256D58] text-white text-xs font-semibold hover:bg-[#1E5846] cursor-pointer disabled:opacity-50"
                 >
-                  {creating ? 'Saving...' : 'Add Lead'}
+                  <span>{creating ? 'Saving...' : 'Add Prospect'}</span>
                 </button>
               </div>
             </form>
@@ -418,108 +419,96 @@ export const LeadsPage: React.FC = () => {
 
       {/* Evaluate Lead Modal */}
       {evaluatingLead && (
-        <div className="fixed inset-0 z-50 bg-[#252525]/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#E7E5E4] space-y-4 animate-in slide-in-from-bottom-2 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E7E5E4]">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#252525]" />
-                <h3 className="text-base font-semibold text-[#252525]">
-                  Evaluate Fit: {evaluatingLead.full_name || evaluatingLead.organization_name}
-                </h3>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#EAEAE6] space-y-4 animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#EAEAE6]">
+              <div>
+                <h3 className="text-base font-bold text-[#171B1A]">Evaluate Qualification Fit</h3>
+                <p className="text-xs text-[#66716B] mt-0.5">
+                  Prospect: <strong className="text-[#171B1A]">{evaluatingLead.full_name}</strong> ({evaluatingLead.organization_name || 'Individual'})
+                </p>
               </div>
               <button
                 onClick={() => setEvaluatingLead(null)}
-                className="btn-motion text-[#737373] hover:text-[#252525] p-1 rounded-md"
+                className="text-[#8E9793] hover:text-[#171B1A] p-1 rounded-md cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {!evaluationResult ? (
-              <form onSubmit={handleRunEvaluation} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#252525] mb-1.5">
-                    Prospect Inquiry / Message Text *
-                  </label>
-                  <textarea
-                    rows={4}
-                    required
-                    value={inquiryText}
-                    onChange={(e) => setInquiryText(e.target.value)}
-                    placeholder="e.g. We are looking to modernize our data pipelines and deploy private machine learning models in Q3. Do you support enterprise multi-cloud setups?"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#E7E5E4] focus:outline-none focus:border-[#252525] text-[#252525] leading-relaxed"
-                  />
-                  <p className="mt-1 text-[11px] text-[#737373]">
-                    The Lead Agent will retrieve company service scope, classify intent, and calculate deterministic fit score.
-                  </p>
-                </div>
+            <form onSubmit={handleRunEvaluation} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#171B1A] mb-1.5">
+                  Prospect Inquiry / Scope Text
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={inquiryText}
+                  onChange={(e) => setInquiryText(e.target.value)}
+                  placeholder="Paste email inquiry, message body, or RFP requirements..."
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] text-[#171B1A] focus:outline-none focus:border-[#256D58] focus:bg-white leading-relaxed"
+                />
+              </div>
 
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E7E5E4]">
-                  <button
-                    type="button"
-                    onClick={() => setEvaluatingLead(null)}
-                    className="btn-motion px-4 py-2 text-xs font-semibold text-[#737373] hover:text-[#252525] cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={evaluating || !inquiryText.trim()}
-                    className="btn-motion inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
-                  >
-                    {evaluating ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Evaluating Pipeline Fit...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Run Lead Agent Evaluation</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[#FAFAF9] border border-[#E7E5E4] space-y-3">
+              {evaluationResult && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[#252525]">
-                      Fit Score: <strong className="text-base text-[#252525] font-mono">{evaluationResult.lead_score}/100</strong>
+                    <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                      Evaluation Complete
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
-                      {evaluationResult.qualification_status}
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-200 text-emerald-900">
+                      Score: {evaluationResult.lead_score}/100
                     </span>
                   </div>
-
-                  <div className="text-xs text-[#737373]">
-                    <span>Buyer Intent: <strong className="text-[#252525] capitalize">{evaluationResult.intent_level}</strong></span>
-                    <span className="mx-2">•</span>
-                    <span>Confidence: {Math.round((evaluationResult.confidence_score ?? 0.8) * 100)}%</span>
-                  </div>
-
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    Status: <strong className="capitalize">{evaluationResult.qualification_status}</strong>
+                  </p>
+                  {evaluationResult.qualification_reason && (
+                    <p className="text-xs text-emerald-700 italic border-t border-emerald-200/60 pt-2">
+                      "{evaluationResult.qualification_reason}"
+                    </p>
+                  )}
                   {evaluationResult.recommended_action && (
-                    <div className="pt-2 border-t border-[#E7E5E4] text-xs">
-                      <strong className="text-[#252525] block mb-1">Recommended Action:</strong>
-                      <p className="text-[#737373] leading-relaxed">{evaluationResult.recommended_action}</p>
-                    </div>
+                    <p className="text-xs text-emerald-800 font-semibold pt-1">
+                      Recommended: {evaluationResult.recommended_action}
+                    </p>
                   )}
                 </div>
+              )}
 
-                <div className="flex justify-end pt-2">
-                  <button
-                    onClick={() => setEvaluatingLead(null)}
-                    className="btn-motion px-5 py-2 rounded-xl bg-[#252525] text-white text-xs font-semibold hover:bg-[#383838] cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#EAEAE6]">
+                <button
+                  type="button"
+                  onClick={() => setEvaluatingLead(null)}
+                  className="px-4 py-2 rounded-xl border border-[#EAEAE6] text-xs font-semibold text-[#66716B] hover:bg-[#FAFAF8] cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={evaluating || !inquiryText.trim()}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#256D58] text-white text-xs font-semibold hover:bg-[#1E5846] cursor-pointer disabled:opacity-50"
+                >
+                  {evaluating ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Scoring Fit...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Run Evaluation</span>
+                    </>
+                  )}
+                </button>
               </div>
-            )}
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 };
+
+export default LeadsPage;

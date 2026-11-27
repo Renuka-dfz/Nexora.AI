@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { marketingApi } from '../../lib/api/marketing';
 import {
   Compass,
   Sparkles,
@@ -9,6 +10,9 @@ import {
   Menu,
   X,
   ShieldCheck,
+  CheckCircle2,
+  TrendingUp,
+  Sliders,
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -29,13 +33,42 @@ export const AppShell: React.FC<AppShellProps> = ({
   activePath,
   onNavigate,
 }) => {
-  const { user, role, companyName, logout } = useAuth();
+  const { user, role, companyId, companyName, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  const canReview = role === 'admin' || role === 'reviewer';
+
+  useEffect(() => {
+    if (!companyId || !canReview) {
+      setPendingCount(0);
+      return;
+    }
+    let active = true;
+    marketingApi.getSummary(companyId)
+      .then((data) => {
+        if (active && data) {
+          setPendingCount(data.pending_reviews ?? 0);
+        }
+      })
+      .catch(() => {
+        marketingApi.listContent(companyId, { status: 'pending', limit: 1 })
+          .then((res) => {
+            if (active && res) {
+              setPendingCount(res.total ?? res.items.length);
+            }
+          })
+          .catch(() => {});
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [companyId, canReview]);
 
   const userInitials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'DF';
 
-  // Exactly 5 navigation items as specified in the Scope
   const navItems: NavItem[] = [
     {
       name: 'Overview',
@@ -52,6 +85,16 @@ export const AppShell: React.FC<AppShellProps> = ({
       path: '/content-studio',
       icon: PenTool,
     },
+    {
+      name: 'Lead Intelligence',
+      path: '/leads',
+      icon: TrendingUp,
+    },
+    {
+      name: 'Settings',
+      path: '/settings',
+      icon: Sliders,
+    },
   ];
 
   const handleNavClick = (path: string) => {
@@ -66,32 +109,32 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#f7fbfd,#fff)] text-[#252525] flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-[#FAFAF8] text-[#171B1A] flex flex-col font-sans antialiased selection:bg-[#256D58] selection:text-white">
       {/* =========================================================================
-          TOP HEADER: 56px height, Pure white surface (#FFFFFF) with thin border (#E7E5E4)
-          Soft Graphite Palette: #252525 text, #737373 secondary
+          TOP HEADER: 56px height, Pure white surface (#FFFFFF) with thin border (#EAEAE6)
+          Warm Ivory & Forest Green Palette: #171B1A text, #66716B secondary, #256D58 accent
           ========================================================================= */}
-      <header className="h-14 bg-white/95 text-[#252525] px-6 flex items-center justify-between sticky top-0 z-40 border-b border-[#dfeaf2] backdrop-blur">
+      <header className="h-14 bg-white/95 text-[#171B1A] px-6 flex items-center justify-between sticky top-0 z-40 border-b border-[#EAEAE6] backdrop-blur-sm shadow-2xs">
         {/* Left: Brand Wordmark + Organization Context */}
         <div className="flex items-center gap-5">
           <div
             onClick={() => handleNavClick('/overview')}
             className="btn-motion flex items-center gap-2.5 cursor-pointer group"
           >
-            <div className="flex h-7 w-7 -rotate-6 items-center justify-center rounded-[8px] bg-[#087fd7] text-white shadow-[0_5px_14px_rgba(22,136,210,.18)]">
-              <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#256D58] text-white shadow-xs">
+              <Sparkles className="h-3.5 w-3.5 fill-current" />
             </div>
-            <span className="font-semibold text-[16px] tracking-tight text-[#252525]">
-              Nexora.AI
+            <span className="font-bold text-[16px] tracking-tight text-[#171B1A]">
+              Nexora<span className="text-[#256D58]">.AI</span>
             </span>
           </div>
 
-          <div className="h-4 w-px bg-[#E7E5E4] hidden sm:block" />
+          <div className="h-4 w-px bg-[#EAEAE6] hidden sm:block" />
 
           {/* Current Company Context Pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#FAFAF9] border border-[#E7E5E4] text-[13px] text-[#252525]">
-            <Building2 className="w-3.5 h-3.5 text-[#737373] shrink-0" />
-            <span className="font-medium text-[#252525] max-w-[160px] sm:max-w-[220px] truncate">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] text-xs text-[#171B1A]">
+            <Building2 className="w-3.5 h-3.5 text-[#66716B] shrink-0" />
+            <span className="font-semibold text-[#171B1A] max-w-[160px] sm:max-w-[220px] truncate">
               {companyName || 'Active Workspace'}
             </span>
           </div>
@@ -101,19 +144,19 @@ export const AppShell: React.FC<AppShellProps> = ({
         <div className="flex items-center gap-4">
           <div
             onClick={() => setProfileModalOpen(true)}
-            className="hidden md:flex items-center gap-2.5 cursor-pointer p-1.5 px-2.5 rounded-xl hover:bg-[#F5F5F4] border border-transparent hover:border-[#E7E5E4] transition-all group"
+            className="hidden md:flex items-center gap-2.5 cursor-pointer p-1.5 px-2.5 rounded-xl hover:bg-[#FAFAF8] border border-transparent hover:border-[#EAEAE6] transition-all group"
             title="Click to view User Profile, Role & Permissions"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#252525] text-white flex items-center justify-center font-bold text-xs shadow-2xs group-hover:bg-[#383838]">
+            <div className="w-8 h-8 rounded-lg bg-[#171B1A] text-white flex items-center justify-center font-bold text-xs shadow-2xs group-hover:bg-[#256D58] transition-colors">
               {userInitials}
             </div>
             <div className="text-left">
-              <p className="text-[13px] font-semibold text-[#252525] leading-tight group-hover:text-black">
+              <p className="text-xs font-semibold text-[#171B1A] leading-tight group-hover:text-[#256D58]">
                 {user?.email || 'user@nexora.ai'}
               </p>
-              <p className="text-[11px] text-[#737373] leading-tight mt-0.5 flex items-center gap-1.5">
-                <span className="font-medium text-[#252525]">{getRoleLabel()}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#F0EFED] text-[#737373] border border-[#E7E5E4]">
+              <p className="text-[11px] text-[#66716B] leading-tight mt-0.5 flex items-center gap-1.5">
+                <span className="font-medium text-[#171B1A]">{getRoleLabel()}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white text-[#66716B] border border-[#EAEAE6]">
                   Profile
                 </span>
               </p>
@@ -122,18 +165,18 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           <span
             onClick={() => setProfileModalOpen(true)}
-            className="md:hidden text-[12px] font-medium px-2 py-0.5 rounded bg-[#F0EFED] text-[#252525] border border-[#E7E5E4] cursor-pointer"
+            className="md:hidden text-xs font-medium px-2 py-0.5 rounded-lg bg-white text-[#171B1A] border border-[#EAEAE6] cursor-pointer"
           >
             {getRoleLabel()}
           </span>
 
-          <div className="h-4 w-px bg-[#E7E5E4] hidden md:block" />
+          <div className="h-4 w-px bg-[#EAEAE6] hidden md:block" />
 
-          {/* Sign Out Button: 36px height, subtle hover lift, spring press */}
+          {/* Sign Out Button */}
           <button
             onClick={logout}
             title="Sign out of Nexora.AI"
-            className="btn-motion inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium text-[#737373] hover:text-[#252525] hover:bg-[#F5F5F4] border border-transparent hover:border-[#E7E5E4]"
+            className="btn-motion inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-[#66716B] hover:text-[#171B1A] hover:bg-[#FAFAF8] border border-transparent hover:border-[#EAEAE6]"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Sign out</span>
@@ -142,7 +185,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           {/* Mobile Menu Trigger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-lg text-[#737373] hover:text-[#252525] hover:bg-[#F5F5F4] md:hidden transition-colors"
+            className="p-1.5 rounded-lg text-[#66716B] hover:text-[#171B1A] hover:bg-[#FAFAF8] md:hidden transition-colors"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -151,15 +194,15 @@ export const AppShell: React.FC<AppShellProps> = ({
       </header>
 
       {/* =========================================================================
-          APPLICATION BODY: Light neutral sidebar (#FAFAF9) + Main workspace (#FAFAF9)
+          APPLICATION BODY: Clean white sidebar + Warm Ivory main workspace (#FAFAF8)
           ========================================================================= */}
       <div className="flex-1 flex flex-col md:flex-row">
-        {/* Desktop Sidebar: 240px wide, 40px item height, 4px vertical gaps */}
-        <aside className="hidden md:flex md:w-60 flex-col bg-[#f7fbfd] border-r border-[#dfeaf2] shrink-0 min-h-[calc(100vh-3.5rem)]">
+        {/* Desktop Sidebar: 240px wide, 40px item height */}
+        <aside className="hidden md:flex md:w-60 flex-col bg-white border-r border-[#EAEAE6] shrink-0 min-h-[calc(100vh-3.5rem)]">
           <div className="p-4 flex-1 flex flex-col justify-between">
             <div>
               <div className="px-3 pt-1 pb-2">
-                <span className="text-[12px] font-medium text-[#737373]">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8E9793]">
                   Workspaces
                 </span>
               </div>
@@ -173,22 +216,27 @@ export const AppShell: React.FC<AppShellProps> = ({
                     <button
                       key={item.path}
                       onClick={() => handleNavClick(item.path)}
-                      className={`btn-motion w-full h-10 flex items-center gap-3 px-3.5 rounded-lg text-left text-[13px] relative cursor-pointer group transition-colors ${
+                      className={`btn-motion w-full h-10 flex items-center gap-3 px-3.5 rounded-xl text-left text-xs relative cursor-pointer group transition-colors ${
                         isActive
-                          ? 'bg-[#e9f5fc] text-[#1688d2] font-semibold'
-                          : 'bg-transparent text-[#737373] hover:text-[#252525] hover:bg-[#F5F5F4] font-normal'
+                          ? 'bg-[#256D58]/10 text-[#256D58] font-bold'
+                          : 'bg-transparent text-[#66716B] hover:text-[#171B1A] hover:bg-[#FAFAF8] font-medium'
                       }`}
                     >
                       {/* Active vertical pill indicator */}
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4.5 bg-[#1688d2] rounded-r animate-in fade-in duration-200" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#256D58] rounded-r animate-in fade-in duration-200" />
                       )}
                       <Icon
                         className={`w-4 h-4 shrink-0 transition-colors ${
-                          isActive ? 'text-[#252525]' : 'text-[#737373] group-hover:text-[#252525]'
+                          isActive ? 'text-[#256D58]' : 'text-[#66716B] group-hover:text-[#171B1A]'
                         }`}
                       />
                       <span className="truncate">{item.name}</span>
+                      {item.path === '/marketing' && canReview && pendingCount > 0 && (
+                        <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-xs">
+                          {pendingCount}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -196,44 +244,44 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
 
             {/* Sidebar Bottom: Interactive User, Role & Tenant Profile Card */}
-            <div className="pt-4 border-t border-[#E7E5E4]">
+            <div className="pt-4 border-t border-[#EAEAE6]">
               <div
                 onClick={() => setProfileModalOpen(true)}
-                className="btn-motion p-3.5 rounded-xl bg-white border border-[#E7E5E4] hover:border-[#252525]/40 hover:bg-[#FAFAF9] space-y-2.5 cursor-pointer shadow-2xs group transition-all"
+                className="btn-motion p-3 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] hover:border-[#256D58]/40 hover:bg-white space-y-2 cursor-pointer shadow-2xs group transition-all"
                 title="Click to view User Profile, Role Permissions & Tenant Isolation"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#252525]">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#171B1A]">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span>Tenant Isolated</span>
                   </div>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#FAFAF9] text-[#737373] border border-[#E7E5E4] group-hover:bg-white">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white text-[#66716B] border border-[#EAEAE6]">
                     pgvector
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2.5 pt-0.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#252525] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <div className="w-7 h-7 rounded-lg bg-[#171B1A] text-white flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-[#256D58] transition-colors">
                     {userInitials}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold text-[#252525] truncate leading-tight group-hover:text-black">
+                    <p className="text-xs font-semibold text-[#171B1A] truncate leading-tight">
                       {user?.email || 'admin@datafactz.ai'}
                     </p>
-                    <div className="flex items-center justify-between text-[11px] text-[#737373] mt-0.5">
-                      <span className="capitalize font-medium text-[#252525]">
+                    <div className="flex items-center justify-between text-[11px] text-[#66716B] mt-0.5">
+                      <span className="capitalize font-medium text-[#171B1A]">
                         {getRoleLabel()}
                       </span>
-                      <span className="text-[10px] text-[#737373] group-hover:text-[#252525] font-medium">
+                      <span className="text-[10px] text-[#256D58] font-semibold">
                         Profile &rarr;
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-1.5 border-t border-[#E7E5E4]/60 flex items-center justify-between text-[10px] font-mono text-[#737373]">
+                <div className="pt-1.5 border-t border-[#EAEAE6] flex items-center justify-between text-[10px] font-mono text-[#8E9793]">
                   <span className="truncate max-w-[120px]">{companyName || 'DataFactZ'}</span>
-                  <span className="text-emerald-700 font-semibold">Active</span>
+                  <span className="text-[#256D58] font-semibold">Active</span>
                 </div>
               </div>
             </div>
@@ -242,16 +290,16 @@ export const AppShell: React.FC<AppShellProps> = ({
 
         {/* Mobile Drawer (Tablet / Mobile) */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-30 bg-[#252525]/20 backdrop-blur-xs flex animate-in fade-in duration-200">
-            <div className="w-68 bg-[#FAFAF9] border-r border-[#E7E5E4] p-5 flex flex-col justify-between shadow-xl animate-in slide-in-from-left duration-200">
+          <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex animate-in fade-in duration-200">
+            <div className="w-68 bg-white border-r border-[#EAEAE6] p-5 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-200">
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-[#E7E5E4] mb-3">
-                  <span className="text-[12px] font-medium text-[#252525]">
+                <div className="flex items-center justify-between pb-3 border-b border-[#EAEAE6] mb-3">
+                  <span className="text-xs font-bold text-[#171B1A] uppercase tracking-wider">
                     Navigation
                   </span>
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-1 rounded-md text-[#737373] hover:text-[#252525] btn-motion"
+                    className="p-1 rounded-lg text-[#66716B] hover:text-[#171B1A]"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -266,18 +314,23 @@ export const AppShell: React.FC<AppShellProps> = ({
                       <button
                         key={item.path}
                         onClick={() => handleNavClick(item.path)}
-                        className={`w-full h-10 flex items-center gap-3 px-3.5 rounded-lg text-left text-[13px] transition-colors cursor-pointer ${
+                        className={`w-full h-10 flex items-center gap-3 px-3.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-[#F0EFED] text-[#252525] font-medium'
-                            : 'text-[#737373] hover:text-[#252525] hover:bg-[#F5F5F4]'
+                            ? 'bg-[#256D58]/10 text-[#256D58] font-bold'
+                            : 'text-[#66716B] hover:text-[#171B1A] hover:bg-[#FAFAF8]'
                         }`}
                       >
                         <Icon
                           className={`w-4 h-4 transition-colors ${
-                            isActive ? 'text-[#252525]' : 'text-[#737373]'
+                            isActive ? 'text-[#256D58]' : 'text-[#66716B]'
                           }`}
                         />
-                        <span>{item.name}</span>
+                        <span className="truncate">{item.name}</span>
+                        {item.path === '/marketing' && canReview && pendingCount > 0 && (
+                          <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-xs">
+                            {pendingCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -289,22 +342,22 @@ export const AppShell: React.FC<AppShellProps> = ({
                   setMobileMenuOpen(false);
                   setProfileModalOpen(true);
                 }}
-                className="pt-3 border-t border-[#E7E5E4] text-[12px] text-[#737373] cursor-pointer hover:bg-[#F0EFED] p-2 rounded-lg transition-colors"
+                className="pt-3 border-t border-[#EAEAE6] text-xs text-[#66716B] cursor-pointer hover:bg-[#FAFAF8] p-2 rounded-xl transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-[#252525] truncate">{user?.email}</p>
-                  <span className="text-[10px] text-[#252525] font-medium">&rarr;</span>
+                  <p className="font-semibold text-[#171B1A] truncate">{user?.email}</p>
+                  <span className="text-[10px] text-[#256D58] font-bold">&rarr;</span>
                 </div>
-                <p className="text-[11px] mt-0.5 text-[#737373]">{getRoleLabel()} • View Profile</p>
+                <p className="text-[11px] mt-0.5 text-[#66716B]">{getRoleLabel()} • View Profile</p>
               </div>
             </div>
             <div className="flex-1" onClick={() => setMobileMenuOpen(false)} />
           </div>
         )}
 
-        {/* Main Workspace Canvas: 32px desktop padding, max-w-[1040px] aligned grid */}
-        <main className="flex-1 bg-[linear-gradient(135deg,#f7fbfd,#fff)] overflow-y-auto">
-          <div key={activePath} className="page-transition max-w-[1040px] mx-auto p-6 sm:p-8">
+        {/* Main Workspace Canvas: Clean max-w-6xl aligned grid with generous whitespace */}
+        <main className="flex-1 bg-[#FAFAF8] overflow-y-auto">
+          <div key={activePath} className="page-transition max-w-6xl mx-auto p-6 sm:p-8">
             {children}
           </div>
         </main>

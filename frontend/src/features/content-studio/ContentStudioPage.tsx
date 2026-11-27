@@ -131,23 +131,27 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
     setGeneratingAiImage(true);
     setError(null);
     try {
-      const res = await marketingApi.generateRecraftImage({
+      const res = await marketingApi.generateOpenRouterImage({
         prompt: promptToUse,
         topic: topic || undefined,
-        company_name: companyName || 'Nexora',
+        headline: generatedDraft?.content_title || editTitle || topic || undefined,
+        company_name: companyName || 'DataFactZ',
         custom_style: platform === 'instagram' ? 'polished square social post' : 'polished landscape social post',
         content_id: cid,
-        size: platform === 'instagram' ? '1:1' : '16:9',
+        size: platform === 'instagram' ? '4:5' : '16:9',
       });
       setAiImageUrl(res.image_url);
       if (cid) {
         setGeneratedImages((previous) => ({ ...previous, [cid]: res.image_url }));
+        if (previewDraft && previewDraft.content_id === cid) {
+          setPreviewDraft((prev) => (prev ? { ...prev, image_url: res.image_url } : null));
+        }
       }
-      setSuccessMsg('Branding visual generated with Recraft V4.1 Flash V2.');
+      setSuccessMsg(`Branding visual generated with OpenRouter (${res.model}).`);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       const msg = typeof detail === 'object' && detail?.message ? detail.message : detail || err?.message;
-      setError(msg || 'Failed to generate image with Recraft.');
+      setError(msg || 'Failed to generate image with OpenRouter.');
     } finally {
       setGeneratingAiImage(false);
     }
@@ -298,7 +302,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
       const updated = await marketingApi.submitContent(generatedDraft.content_id);
       setGeneratedDraft(updated);
       setSuccessMsg(
-        'Draft submitted to Marketing Agent Review Queue! Admin or Reviewer approval is now required before dispatch.'
+        'Draft submitted for review! Admin or Reviewer approval is now required before dispatch.'
       );
     } catch (err: any) {
       setError(err?.message || 'Failed to submit draft for review');
@@ -441,28 +445,30 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
   ];
 
   return (
-    <div className="studio-theme max-w-6xl mx-auto space-y-8 pb-16">
+    <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* Page Header */}
-      <div className="workspace-header px-5 py-5 sm:px-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="pb-5 border-b border-[#EAEAE6] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-[28px] font-semibold text-[#252525] tracking-tight flex flex-wrap items-center gap-x-2.5 gap-y-2">
-            <span>Create Your Weekly Content.</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-[#171B1A]">
+              Content Studio
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               pgvector Grounded
             </span>
-          </h1>
-          <p className="text-sm text-[#737373] mt-1">
-            Plan, generate, review, and schedule your social media content with your AI Marketing Agent.
+          </div>
+          <p className="text-sm text-[#66716B] mt-0.5">
+            On-demand multi-format content generation grounded in verified company intelligence.
           </p>
         </div>
 
         {onNavigate && (
           <button
             onClick={() => onNavigate('/marketing')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-[#252525] bg-white border border-[#E7E5E4] rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 self-start sm:self-auto cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#171B1A] bg-white border border-[#EAEAE6] rounded-xl hover:bg-[#FAFAF8] shadow-xs hover:shadow-sm transition-all self-start sm:self-auto cursor-pointer"
           >
-            <span>Marketing Workspace & Reviews</span>
+            <span>Marketing Agent</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         )}
@@ -486,7 +492,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                 onClick={() => onNavigate('/marketing')}
                 className="underline font-semibold hover:text-emerald-950 shrink-0 text-xs cursor-pointer"
               >
-                Open Review Queue &rarr;
+                Inspect in Weekly Automation &rarr;
               </button>
             )}
           </div>
@@ -506,57 +512,111 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
               const imageUrl = generatedImages[previewDraft.content_id] || previewDraft.image_url || null;
               return (
                 <div className="grid md:grid-cols-[1fr_1fr]">
-                  <div className="bg-[#edf7fd] p-5 sm:p-7">
+                  <div className="bg-[#FAFAF8] p-5 sm:p-7 border-r border-[#EAEAE6]">
                     <div className="mb-4 flex items-center justify-between">
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#1688d2]">Post Preview</span>
-                      <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-full border border-[#dfe7ee] bg-white p-2 text-[#697386]"><X className="h-4 w-4" /></button>
+                      <span className="rounded-full bg-white border border-[#EAEAE6] px-3 py-1 text-[11px] font-bold text-[#256D58]">Post Preview</span>
+                      <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-full border border-[#EAEAE6] bg-white p-2 text-[#66716B] hover:text-[#171B1A] cursor-pointer"><X className="h-4 w-4" /></button>
                     </div>
                     {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={previewDraft.content_title}
-                        className={`mx-auto w-full rounded-2xl border border-white object-cover shadow-lg ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] aspect-[4/5]' : 'aspect-[1200/627]'}`}
-                      />
+                      <div className="space-y-3">
+                        <img
+                          src={imageUrl}
+                          alt={previewDraft.content_title}
+                          className={`mx-auto w-full rounded-2xl border border-[#EAEAE6] object-cover shadow-sm ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] aspect-[4/5]' : 'aspect-[1200/627]'}`}
+                        />
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] text-[#8E9793] font-mono">OpenRouter recraft/recraft-v3</span>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateRecraftImage(undefined, previewDraft.content_id)}
+                            disabled={generatingAiImage}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#256D58] hover:text-[#1E5846] cursor-pointer"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${generatingAiImage ? 'animate-spin' : ''}`} />
+                            <span>Regenerate Visual</span>
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <div className={`mx-auto flex w-full flex-col justify-end rounded-2xl bg-[linear-gradient(145deg,#087bd4,#63b9e1)] p-6 text-white shadow-lg ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] aspect-[4/5]' : 'aspect-[1200/627]'}`}>
-                        <Sparkles className="mb-auto h-6 w-6 text-[#dfff75]" />
-                        <p className="text-xl font-bold leading-tight">{previewDraft.content_title}</p>
+                      <div className={`mx-auto flex w-full flex-col justify-between rounded-2xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-6 text-[#1E293B] shadow-xs ${previewDraft.platform_target === 'instagram' ? 'max-w-[440px] min-h-[460px] aspect-[4/5]' : 'aspect-[1200/627]'}`}>
+                        <div>
+                          <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
+                            <span className="text-[11px] font-mono uppercase tracking-wider text-[#00A4EF] font-bold">
+                              {companyName || 'DataFactZ AI'}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wider bg-slate-200 px-2.5 py-0.5 rounded-full text-slate-700 font-semibold">
+                              {previewDraft.platform_target === 'instagram' ? 'Instagram 4:5' : 'Feed Graphic'}
+                            </span>
+                          </div>
+                          <div className="mt-6 text-center py-6">
+                            <Sparkles className="w-12 h-12 mx-auto text-[#00A4EF] opacity-70 mb-3" />
+                            <h4 className="text-sm font-bold text-[#0F172A]">
+                              Visual Creative Pending
+                            </h4>
+                            <p className="text-xs text-[#64748B] mt-1.5 max-w-xs mx-auto">
+                              No image attached yet. Generate a branded 1080×1350 visual card using OpenRouter (recraft-v3).
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-[#E2E8F0] space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateRecraftImage(undefined, previewDraft.content_id)}
+                            disabled={generatingAiImage}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#182127] hover:bg-[#25323C] px-4 py-3 text-xs font-semibold text-white shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                          >
+                            {generatingAiImage ? (
+                              <><RefreshCw className="h-4 w-4 animate-spin text-[#00A4EF]" /><span>Generating creative via OpenRouter...</span></>
+                            ) : (
+                              <><Sparkles className="h-4 w-4 text-[#00A4EF]" /><span>Generate DataFactZ Visual (recraft-v3)</span></>
+                            )}
+                          </button>
+                          <p className="text-[10px] text-center text-[#64748B]">
+                            Uses OpenRouter recraft/recraft-v3 with automated typography overlay
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                   <div className="flex min-h-[420px] flex-col p-5 sm:p-7">
-                    <div className="border-b border-[#edf1f4] pb-4">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1688d2]">{previewDraft.platform_target}</p>
-                      <h3 className="mt-2 text-xl font-semibold leading-tight text-[#252525]">{previewDraft.content_title}</h3>
+                    <div className="border-b border-[#EAEAE6] pb-4">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#256D58]">{previewDraft.platform_target}</p>
+                      <h3 className="mt-2 text-xl font-semibold leading-tight text-[#171B1A]">{previewDraft.content_title}</h3>
                       {previewDraft.scheduled_at && (
-                        <p className="mt-2 text-xs font-medium text-[#697386]">
+                        <p className="mt-2 text-xs font-medium text-[#66716B]">
                           Scheduled: {new Date(previewDraft.scheduled_at).toLocaleString()}
                         </p>
                       )}
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto py-5">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#697386]">Caption</p>
-                      <p className="mt-2 text-sm leading-7 text-[#252525]">{parsed.caption}</p>
+                    <div className="min-h-0 flex-1 overflow-y-auto py-5 space-y-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#256D58]">Post Caption</p>
+                        <p className="mt-2 text-sm leading-6 text-[#171B1A] font-medium">{parsed.caption}</p>
+                      </div>
                       {parsed.description && (
-                        <p className="mt-3 text-sm leading-7 text-[#697386]">{parsed.description}</p>
+                        <div className="rounded-xl border border-[#EAEAE6] bg-[#FAFAF8] p-3.5">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#66716B]">Supporting Context</p>
+                          <p className="mt-1.5 text-xs leading-5 text-[#66716B] line-clamp-6">{parsed.description}</p>
+                        </div>
                       )}
                     </div>
-                    <div className="border-t border-[#edf1f4] pt-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#697386]">Hashtags</p>
+                    <div className="border-t border-[#EAEAE6] pt-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#66716B]">Hashtags</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {parsed.hashtags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-[#edf7fd] px-3 py-1.5 text-xs font-medium text-[#1688d2]">{tag}</span>
+                          <span key={tag} className="rounded-full bg-[#FAFAF8] border border-[#EAEAE6] px-3 py-1 text-xs font-medium text-[#256D58]">{tag}</span>
                         ))}
                       </div>
                       <div className="mt-5 flex items-center justify-between gap-3">
-                        <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-full border border-[#dfe7ee] px-4 py-2.5 text-xs font-bold text-[#697386]">Close</button>
+                        <button type="button" onClick={() => setPreviewDraft(null)} className="rounded-xl border border-[#EAEAE6] px-4 py-2 text-xs font-semibold text-[#66716B] hover:bg-[#FAFAF8] cursor-pointer">Close</button>
                         <button
                           type="button"
                           onClick={() => {
                             void handleSubmitWeeklyPlan();
                             setPreviewDraft(null);
                           }}
-                          className="lime-button inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-[#172300]"
+                          className="inline-flex items-center gap-2 rounded-xl bg-[#256D58] hover:bg-[#1E5846] px-5 py-2.5 text-xs font-semibold text-white shadow-xs cursor-pointer"
                         >
                           Submit for Review <Send className="h-3.5 w-3.5" />
                         </button>
@@ -571,18 +631,18 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
       )}
 
       {weeklyDrafts.length > 0 && (
-        <div className="rounded-[24px] border border-[#dfeaf2] bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 border-b border-[#e7edf2] pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-2xl border border-[#EAEAE6] bg-white p-5 shadow-xs sm:p-6">
+          <div className="flex flex-col gap-4 border-b border-[#EAEAE6] pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1688d2]">Weekly content plan</p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight">Five focused posts</h2>
-              <p className="mt-1 text-xs text-[#697386]">Five scheduled posting dates assigned by the backend.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#256D58]">Weekly content plan</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#171B1A]">Five focused posts</h2>
+              <p className="mt-1 text-xs text-[#66716B]">Five scheduled posting dates assigned by the backend.</p>
             </div>
             <button
               type="button"
               disabled={submitting}
               onClick={handleSubmitWeeklyPlan}
-              className="lime-button inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold text-[#172300] disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#256D58] hover:bg-[#1E5846] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
               {submitting ? 'Submitting...' : 'Submit Weekly Plan for Review'}
@@ -598,25 +658,25 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                     type="button"
                     key={draft.content_id}
                     onClick={() => setPreviewDraft(draft)}
-                    className={`rounded-[18px] border p-3 text-left transition ${generatedDraft?.content_id === draft.content_id ? 'border-[#1688d2] bg-[#edf7fd] shadow-sm' : 'border-[#e2e9ef] bg-white hover:-translate-y-1 hover:border-[#1688d2]/50 hover:shadow-md'}`}
+                    className={`rounded-xl border p-3 text-left transition-all ${generatedDraft?.content_id === draft.content_id ? 'border-[#256D58] bg-[#256D58]/5 shadow-xs' : 'border-[#EAEAE6] bg-white hover:-translate-y-1 hover:border-[#256D58]/40 hover:shadow-xs'}`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#697386]">Post {index + 1}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold capitalize ${draft.approval_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : draft.approval_status === 'pending' ? 'bg-amber-100 text-amber-700' : draft.approval_status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-[#e7edf2] text-[#697386]'}`}>{draft.approval_status}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8E9793]">Post {index + 1}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold capitalize ${draft.approval_status === 'approved' ? 'bg-emerald-100 text-emerald-800' : draft.approval_status === 'pending' ? 'bg-amber-100 text-amber-800' : draft.approval_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-[#FAFAF8] text-[#66716B]'}`}>{draft.approval_status}</span>
                     </div>
-                    <div className="mt-3 overflow-hidden rounded-xl border border-[#dfe7ee] bg-[#eef7fd]">
+                    <div className="mt-3 overflow-hidden rounded-xl border border-[#EAEAE6] bg-[#FAFAF8]">
                       {imageUrl ? (
                         <img src={imageUrl} alt={draft.content_title} className={`w-full object-cover ${platform === 'instagram' ? 'aspect-[4/5]' : 'aspect-[1200/627]'}`} />
                       ) : (
-                        <div className={`w-full bg-[linear-gradient(145deg,#087bd4,#63b9e1)] p-4 text-white ${platform === 'instagram' ? 'aspect-[4/5]' : 'aspect-[1200/627]'}`}>
-                          <Sparkles className="h-4 w-4 text-[#dfff75]" />
+                        <div className={`w-full bg-[#14211C] p-4 text-white ${platform === 'instagram' ? 'aspect-[4/5]' : 'aspect-[1200/627]'}`}>
+                          <Sparkles className="h-4 w-4 text-[#34D399]" />
                           <p className="mt-[55%] line-clamp-3 text-sm font-bold leading-5">{draft.content_title}</p>
                         </div>
                       )}
                     </div>
-                    <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-[#252525]">{draft.content_title}</p>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#697386]">{parsed.caption}</p>
-                    <div className="mt-2 flex items-center justify-between border-t border-[#edf1f4] pt-2 text-[10px] text-[#697386]">
+                    <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-[#171B1A]">{draft.content_title}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#66716B]">{parsed.caption}</p>
+                    <div className="mt-2 flex items-center justify-between border-t border-[#EAEAE6] pt-2 text-[10px] text-[#8E9793]">
                       <span>{platform === 'instagram' ? '1080 × 1350' : '1200 × 627'}</span>
                       <span>{draft.scheduled_at ? new Date(draft.scheduled_at).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'No schedule'}</span>
                     </div>
@@ -667,24 +727,43 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
           )}
         </div>
 
+        {/* Compact Background Automation Status Card */}
+        <div className="p-3.5 rounded-xl bg-[#FAFAF8] border border-[#EAEAE6] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-[#66716B]">
+          <div className="flex items-center gap-2 text-[#171B1A]">
+            <Sparkles className="w-4 h-4 text-[#256D58] shrink-0" />
+            <span>
+              <strong>Weekly Automation Active:</strong> Celery Beat autonomously generates your weekly 5-post campaign. Drafts can be inspected and approved in Weekly Automation.
+            </span>
+          </div>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('/marketing')}
+              className="text-xs font-semibold text-[#256D58] hover:underline shrink-0 self-start sm:self-auto cursor-pointer"
+            >
+              Weekly Automation &rarr;
+            </button>
+          )}
+        </div>
+
         {isCreatorOrAdmin ? (
           <form onSubmit={handleGenerateAI} className="space-y-6">
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#dfeaf2] bg-[#f7fbfd] p-1.5">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#EAEAE6] bg-[#FAFAF8] p-1.5">
               <button
                 type="button"
                 onClick={() => setGenerationMode('automatic')}
-                className={`rounded-xl px-4 py-3 text-left transition ${generationMode === 'automatic' ? 'bg-[#087fd7] text-white shadow-sm' : 'text-[#697386] hover:bg-white'}`}
+                className={`rounded-xl px-4 py-3 text-left transition cursor-pointer ${generationMode === 'automatic' ? 'bg-[#256D58] text-white shadow-xs' : 'text-[#66716B] hover:bg-white'}`}
               >
-                <span className="block text-sm font-bold">Generate Automatically</span>
-                <span className={`mt-1 block text-[11px] ${generationMode === 'automatic' ? 'text-white/75' : 'text-[#697386]'}`}>Create five posts from your stored company knowledge</span>
+                <span className="block text-sm font-bold">Generate from Company Knowledge</span>
+                <span className={`mt-1 block text-[11px] ${generationMode === 'automatic' ? 'text-white/80' : 'text-[#8E9793]'}`}>Create posts grounded in your verified company facts</span>
               </button>
               <button
                 type="button"
                 onClick={() => setGenerationMode('manual')}
-                className={`rounded-xl px-4 py-3 text-left transition ${generationMode === 'manual' ? 'bg-[#087fd7] text-white shadow-sm' : 'text-[#697386] hover:bg-white'}`}
+                className={`rounded-xl px-4 py-3 text-left transition cursor-pointer ${generationMode === 'manual' ? 'bg-[#256D58] text-white shadow-xs' : 'text-[#66716B] hover:bg-white'}`}
               >
                 <span className="block text-sm font-bold">Create with Your Prompt</span>
-                <span className={`mt-1 block text-[11px] ${generationMode === 'manual' ? 'text-white/75' : 'text-[#697386]'}`}>Describe your campaign or content idea</span>
+                <span className={`mt-1 block text-[11px] ${generationMode === 'manual' ? 'text-white/80' : 'text-[#8E9793]'}`}>Describe your custom campaign or creative topic</span>
               </button>
             </div>
 
@@ -718,13 +797,13 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                       type="button"
                       onClick={() => setFormatType(opt.id as any)}
                       className={`card-motion min-h-[132px] p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between gap-4 cursor-pointer ${isSelected
-                        ? 'bg-[#252525] text-white border-[#252525] shadow-md -translate-y-1 ring-2 ring-[#252525]/15'
-                        : 'bg-white text-[#252525] border-[#E7E5E4] hover:border-[#252525]/40 hover:bg-[#FAFAF9]'
+                        ? 'bg-[#256D58] text-white border-[#256D58] shadow-md -translate-y-1 ring-2 ring-[#256D58]/20'
+                        : 'bg-white text-[#171B1A] border-[#EAEAE6] hover:border-[#256D58]/40 hover:bg-[#FAFAF8]'
                         }`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-white/15 text-white' : 'bg-[#F0EFED] text-[#252525]'
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-white/20 text-white' : 'bg-[#FAFAF8] text-[#171B1A]'
                             }`}
                         >
                           <Icon className="w-4 h-4" />
@@ -734,7 +813,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                       <div>
                         <span className="block text-sm font-semibold leading-snug">{opt.label}</span>
                         <span
-                          className={`block text-xs mt-1 leading-relaxed ${isSelected ? 'text-white/80' : 'text-[#737373]'
+                          className={`block text-xs mt-1 leading-relaxed ${isSelected ? 'text-white/85' : 'text-[#66716B]'
                             }`}
                         >
                           {opt.desc}
@@ -758,13 +837,13 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                     {platform === 'instagram' ? 'Separate 4-Tier Schema' : 'Unified Executive Layout'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 bg-[#FAFAF9] p-1.5 rounded-xl border border-[#E7E5E4]">
+                <div className="grid grid-cols-2 gap-2 bg-[#FAFAF8] p-1.5 rounded-xl border border-[#EAEAE6]">
                   <button
                     type="button"
                     onClick={() => setPlatform('linkedin')}
-                    className={`btn-motion py-2 px-3 rounded-lg text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 ${platform === 'linkedin'
-                      ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-                      : 'text-[#737373] hover:text-[#252525]'
+                    className={`btn-motion py-2 px-3 rounded-lg text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${platform === 'linkedin'
+                      ? 'bg-[#256D58] text-white shadow-xs'
+                      : 'text-[#66716B] hover:text-[#171B1A]'
                       }`}
                   >
                     <span>LinkedIn</span>
@@ -772,15 +851,15 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                   <button
                     type="button"
                     onClick={() => setPlatform('instagram')}
-                    className={`btn-motion py-2 px-3 rounded-lg text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 ${platform === 'instagram'
-                      ? 'bg-[#252525] text-white shadow-sm -translate-y-0.5'
-                      : 'text-[#737373] hover:text-[#252525]'
+                    className={`btn-motion py-2 px-3 rounded-lg text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-all ${platform === 'instagram'
+                      ? 'bg-[#256D58] text-white shadow-xs'
+                      : 'text-[#66716B] hover:text-[#171B1A]'
                       }`}
                   >
                     <span>Instagram</span>
                   </button>
                 </div>
-                <p className="text-[11px] text-[#737373] leading-tight">
+                <p className="text-[11px] text-[#66716B] leading-tight">
                   {platform === 'instagram'
                     ? 'Generates dedicated fields: Caption, Description, Hashtags & SEO Keywords.'
                     : 'Generates cohesive authoritative executive post with hook, narrative, and CTA.'}
@@ -789,7 +868,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
               {/* Tone Selection Floating Chips */}
               <div className="sm:col-span-7 space-y-2">
-                <label className="block text-[13px] font-medium text-[#252525]">
+                <label className="block text-[13px] font-semibold text-[#171B1A]">
                   Tone & Editorial Style
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -800,9 +879,9 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                         key={t.id}
                         type="button"
                         onClick={() => setTone(t.id)}
-                        className={`btn-motion px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${isSelected
-                          ? 'bg-[#252525] text-white shadow-xs -translate-y-0.5'
-                          : 'bg-[#FAFAF9] text-[#737373] border border-[#E7E5E4] hover:text-[#252525] hover:border-[#D6D3D1]'
+                        className={`btn-motion px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${isSelected
+                          ? 'bg-[#256D58] text-white shadow-xs'
+                          : 'bg-[#FAFAF8] text-[#66716B] border border-[#EAEAE6] hover:text-[#171B1A]'
                           }`}
                       >
                         {t.label}
@@ -865,13 +944,13 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
                 <div className="flex items-center gap-2">
                   {/* View Mode Toggle: Pipeline Flow vs Live Feed Preview */}
-                  <div className="flex items-center bg-[#FAFAF9] p-1 rounded-xl border border-[#E7E5E4]">
+                  <div className="flex items-center bg-[#FAFAF8] p-1 rounded-xl border border-[#EAEAE6]">
                     <button
                       type="button"
                       onClick={() => setBlueprintView('pipeline')}
                       className={`btn-motion px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${blueprintView === 'pipeline'
-                        ? 'bg-[#252525] text-white shadow-xs'
-                        : 'text-[#737373] hover:text-[#252525]'
+                        ? 'bg-[#256D58] text-white shadow-xs'
+                        : 'text-[#66716B] hover:text-[#171B1A]'
                         }`}
                     >
                       <Zap className="w-3 h-3" />
@@ -881,8 +960,8 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                       type="button"
                       onClick={() => setBlueprintView('preview')}
                       className={`btn-motion px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${blueprintView === 'preview'
-                        ? 'bg-[#252525] text-white shadow-xs'
-                        : 'text-[#737373] hover:text-[#252525]'
+                        ? 'bg-[#256D58] text-white shadow-xs'
+                        : 'text-[#66716B] hover:text-[#171B1A]'
                         }`}
                     >
                       <Eye className="w-3 h-3" />
@@ -1380,7 +1459,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                 <button
                   type="submit"
                   disabled={generating || (generationMode === 'manual' && !topic.trim())}
-                  className="btn-motion w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 px-7 rounded-xl bg-[#252525] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:bg-[#383838] disabled:opacity-50 disabled:pointer-events-none cursor-pointer group"
+                  className="btn-motion w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 px-7 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-sm font-semibold shadow-xs hover:shadow-md disabled:opacity-50 disabled:pointer-events-none cursor-pointer group"
                 >
                   {generating ? (
                     <>
@@ -1406,7 +1485,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
             >
               Marketing Agent Workspace
             </button>{' '}
-            to inspect, approve, or reject drafts in the review queue.
+            to inspect, approve, or reject drafts in Weekly Automation.
           </div>
         )}
       </div>
@@ -1438,15 +1517,6 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
               <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-[#FAFAF9] border border-[#E7E5E4] text-[#737373]">
                 Processing Request
               </span>
-              <button
-                type="button"
-                onClick={handleStopGeneration}
-                className="btn-motion inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 hover:border-red-300 text-xs font-semibold cursor-pointer shadow-xs transition-colors"
-                title="Stop generation immediately"
-              >
-                <Square className="w-3 h-3 fill-current" />
-                <span>Stop Generation</span>
-              </button>
             </div>
           </div>
 
@@ -1601,47 +1671,50 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
 
             {viewMode === 'preview' ? (
               <div className="space-y-6">
-                {/* Recraft V4.1 Flash V2 image generation */}
-                {generatedDraft.content_type === 'image' && (
+                {/* Branded Visual Creative (OpenRouter recraft-v3) */}
+                {(generatedDraft.content_type === 'image' || generatedDraft.platform_target === 'instagram' || Boolean(generatedDraft.image_url) || Boolean(generatedImages[generatedDraft.content_id]) || Boolean(aiImageUrl)) && (
                   <div className="space-y-4 rounded-2xl border border-[#E7E5E4] bg-white p-5 shadow-xs">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-sm font-semibold text-[#252525]">Recraft V4.1 Flash V2</h3>
-                        <p className="mt-1 text-xs text-[#737373]">Generate and save a raster image for this content.</p>
+                        <h3 className="text-sm font-semibold text-[#182127]">DataFactZ Branded Visual Creative</h3>
+                        <p className="mt-1 text-xs text-[#737373]">Grounded social visual generated via OpenRouter (recraft/recraft-v3).</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleGenerateRecraftImage()}
                         disabled={generatingAiImage}
-                        className="btn-motion inline-flex items-center gap-2 rounded-xl bg-[#252525] px-4 py-2 text-xs font-semibold text-white shadow-xs disabled:opacity-50"
+                        className="btn-motion inline-flex items-center gap-2 rounded-xl bg-[#182127] hover:bg-[#25323C] px-4 py-2 text-xs font-semibold text-white shadow-xs disabled:opacity-50 cursor-pointer"
                       >
                         {generatingAiImage ? (
-                          <><RefreshCw className="h-3.5 w-3.5 animate-spin" /><span>Generating...</span></>
+                          <><RefreshCw className="h-3.5 w-3.5 animate-spin text-[#00A4EF]" /><span>Generating Visual...</span></>
                         ) : (
-                          <><Sparkles className="h-3.5 w-3.5" /><span>{aiImageUrl ? 'Regenerate image' : 'Generate image'}</span></>
+                          <><Sparkles className="h-3.5 w-3.5 text-[#00A4EF]" /><span>{(aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url) ? 'Regenerate visual' : 'Generate visual'}</span></>
                         )}
                       </button>
                     </div>
                     {(aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url) ? (
                       <div className="space-y-3">
-                        <div className="aspect-video overflow-hidden rounded-xl border border-[#E7E5E4] bg-[#FAFAF9]">
+                        <div className="max-h-[500px] overflow-hidden rounded-xl border border-[#E7E5E4] bg-[#182127] flex items-center justify-center p-2">
                           <img
                             src={aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url || ''}
-                            alt="Recraft generated marketing image"
-                            className="h-full w-full object-contain"
+                            alt="DataFactZ marketing creative"
+                            className="max-h-[480px] w-auto object-contain rounded-lg"
                           />
                         </div>
-                        <a
-                          href={aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url || ''}
-                          download={`recraft-${generatedDraft.content_id.slice(0, 8)}.png`}
-                          className="inline-flex rounded-lg border border-[#E7E5E4] bg-[#FAFAF9] px-3 py-1.5 text-xs font-semibold text-[#252525]"
-                        >
-                          Download PNG
-                        </a>
+                        <div className="flex items-center justify-between">
+                          <a
+                            href={aiImageUrl || generatedImages[generatedDraft.content_id] || generatedDraft.image_url || ''}
+                            download={`datafactz-${generatedDraft.content_id.slice(0, 8)}.jpg`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E7E5E4] bg-[#FAFAF9] px-3 py-1.5 text-xs font-semibold text-[#182127] hover:bg-[#EAEAE6]"
+                          >
+                            Download Visual
+                          </a>
+                          <span className="text-[11px] text-[#737373] font-mono">1080×1350 High-Res Creative</span>
+                        </div>
                       </div>
                     ) : (
                       <div className="rounded-xl border-2 border-dashed border-[#E7E5E4] bg-[#FAFAF9] py-10 text-center text-xs text-[#737373]">
-                        Generate an image with Recraft V4.1 Flash V2 to preview it here.
+                        No visual creative attached yet. Click "Generate visual" to render a branded DataFactZ card.
                       </div>
                     )}
                   </div>
@@ -1741,7 +1814,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({ onNavigate
                   className="btn-motion inline-flex items-center gap-1.5 h-10 px-5 text-xs font-semibold text-white bg-[#252525] hover:bg-[#383838] rounded-xl shadow-xs hover:shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>{submitting ? 'Submitting...' : 'Submit to Review Queue'}</span>
+                  <span>{submitting ? 'Submitting...' : 'Submit for Approval'}</span>
                 </button>
               )}
 

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { marketingApi } from '../../lib/api/marketing';
 import {
   Sparkles,
   CheckCircle2,
@@ -26,32 +27,62 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onNavigate,
   companyName = 'My Organization',
 }) => {
-  const { user, role, logout } = useAuth();
+  const { user, role, companyId, logout } = useAuth();
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  const canReview = role === 'admin' || role === 'reviewer';
+
+  useEffect(() => {
+    if (!companyId || !canReview) {
+      setPendingCount(0);
+      return;
+    }
+    let active = true;
+    marketingApi.getSummary(companyId)
+      .then((data) => {
+        if (active && data) {
+          setPendingCount(data.pending_reviews ?? 0);
+        }
+      })
+      .catch(() => {
+        marketingApi.listContent(companyId, { status: 'pending', limit: 1 })
+          .then((res) => {
+            if (active && res) {
+              setPendingCount(res.total ?? res.items.length);
+            }
+          })
+          .catch(() => { });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [companyId, canReview]);
 
   // Define role-specific navigation menus
   const navItems = React.useMemo(() => {
     if (role === 'admin') {
       return [
-        { label: 'Content Studio', path: '/app/studio', icon: Sparkles },
-        { label: 'Review Queue', path: '/app/approvals', icon: CheckCircle2 },
+        { label: 'Marketing Agent', path: '/marketing', icon: Sparkles },
+        { label: 'Content Studio', path: '/content-studio', icon: Sparkles },
         { label: 'Company Knowledge', path: '/app/knowledge', icon: BookOpen },
         { label: 'Team Members', path: '/app/team', icon: Users },
-        { label: 'Lead Intelligence', path: '/app/leads', icon: TrendingUp },
-        { label: 'Company Settings', path: '/app/settings', icon: Sliders },
+        { label: 'Lead Intelligence', path: '/leads', icon: TrendingUp },
+        { label: 'Company Settings', path: '/settings', icon: Sliders },
       ];
     } else if (role === 'reviewer') {
       return [
-        { label: 'Review Queue', path: '/app/approvals', icon: CheckCircle2 },
+        { label: 'Marketing Agent', path: '/marketing', icon: Sparkles },
         { label: 'Fact Verification', path: '/app/knowledge', icon: BookOpen },
         { label: 'Audit & History', path: '/app/history', icon: Layers },
       ];
     } else {
       // Creator (user role)
       return [
-        { label: 'Content Studio', path: '/app/studio', icon: Sparkles },
-        { label: 'My Submissions', path: '/app/approvals', icon: CheckCircle2 },
+        { label: 'Marketing Agent', path: '/marketing', icon: Sparkles },
+        { label: 'Content Studio', path: '/content-studio', icon: Sparkles },
         { label: 'Company Knowledge', path: '/app/knowledge', icon: BookOpen },
-        { label: 'Lead Management', path: '/app/leads', icon: TrendingUp },
+        { label: 'Lead Management', path: '/leads', icon: TrendingUp },
       ];
     }
   }, [role]);
@@ -113,18 +144,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activePath === item.path;
+              const isReviewItem = item.path === '/app/approvals' && canReview;
+
               return (
                 <button
                   key={item.path}
                   onClick={() => onNavigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-[#256D58] text-white shadow-sm'
-                      : 'text-[#66716B] hover:text-[#171B1A] hover:bg-[#F4F4F0]'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive
+                    ? 'bg-[#256D58] text-white shadow-sm'
+                    : 'text-[#66716B] hover:text-[#171B1A] hover:bg-[#F4F4F0]'
+                    }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#66716B]'}`} />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#66716B]'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.path === '/marketing' && canReview && pendingCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-xs">
+                      {pendingCount}
+                    </span>
+                  )}
                 </button>
               );
             })}

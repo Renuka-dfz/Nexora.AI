@@ -30,4 +30,11 @@ export const authApi = {
       body: JSON.stringify({ token, password }),
     });
   },
+
+  resetPassword: async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
 };

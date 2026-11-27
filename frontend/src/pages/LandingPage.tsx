@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   ArrowRight,
-  BarChart3,
-  CalendarDays,
-  Menu,
-  Search,
+  CheckCircle2,
+  Database,
+  Globe,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
-  Users,
-  X,
-  Zap,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -16,10 +15,8 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   useEffect(() => {
-    document.title = 'Nexora.AI — AI Marketing Growth Engine';
+    document.title = 'Nexora.AI — Autonomous AI Marketing Growth Engine';
     let meta = document.querySelector("meta[name='description']");
     if (!meta) {
       meta = document.createElement('meta');
@@ -28,222 +25,216 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     }
     meta.setAttribute(
       'content',
-      'Research competitors, plan content, generate campaigns, and grow your brand with Nexora AI agents.'
+      'Autonomous marketing agent grounded in your company knowledge via pgvector. Automatically crawl websites, generate weekly campaigns, and publish with human approval gates.'
     );
   }, []);
 
   const navigate = (path: string) => onNavigate?.(path);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#087fd7] text-white">
-      <section className="relative min-h-screen overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#087bd4_0%,#159adf_55%,#79c9e8_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,.16),transparent_32%)]" />
-        <div className="hero-cloud hero-cloud-one" />
-        <div className="hero-cloud hero-cloud-two" />
-        <div className="hero-cloud hero-cloud-three" />
-
-        <header className="relative z-40 mx-auto flex max-w-[1180px] items-center justify-between px-5 py-5 md:px-8">
+    <div className="min-h-screen bg-[#0E1513] text-[#FAFAF8] font-sans antialiased selection:bg-[#256D58] selection:text-white flex flex-col justify-between">
+      {/* =========================================================================
+          TOP NAVBAR: Clean, Minimalist Header
+          ========================================================================= */}
+      <header className="sticky top-0 z-50 bg-[#0E1513]/90 backdrop-blur-md border-b border-white/10 transition-all">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          {/* Logo & Brand Wordmark */}
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2.5"
-            aria-label="Nexora.AI home"
+            className="flex items-center gap-2.5 text-left group cursor-pointer"
           >
-            <div className="flex h-10 w-10 -rotate-6 items-center justify-center rounded-[12px] border border-white/30 bg-white/15 shadow-[0_8px_25px_rgba(0,55,120,.18)] backdrop-blur">
-              <Sparkles className="h-5 w-5" fill="currentColor" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#256D58] to-[#34D399] flex items-center justify-center text-white shadow-md shadow-[#256D58]/25 group-hover:scale-105 transition-transform duration-200">
+              <Sparkles className="w-4 h-4 fill-current" />
             </div>
-            <span className="text-lg font-semibold tracking-[-0.03em]">
-              Nexora<span className="text-[#dfff75]">.AI</span>
+            <span className="text-lg font-bold tracking-tight text-white flex items-center gap-1">
+              Nexora<span className="text-[#34D399]">.AI</span>
             </span>
           </button>
 
-          <nav className="hidden items-center gap-8 lg:flex" aria-label="Main navigation">
-            <a href="#about" className="text-[13px] font-medium text-white/75 transition hover:text-white">
-              About Us
-            </a>
-            <button
-              type="button"
-              onClick={() => navigate('/register')}
-              className="text-[13px] font-medium text-white/75 transition hover:text-white"
-            >
-              Register
-            </button>
+          {/* Action CTAs */}
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="text-[13px] font-medium text-white/75 transition hover:text-white"
+              className="px-4 py-2 text-xs font-semibold text-[#8E9793] hover:text-white transition-colors cursor-pointer"
             >
-              Login
+              Sign In
             </button>
-          </nav>
-
-          <button
-            type="button"
-            onClick={() => navigate('/register')}
-            className="lime-button hidden rounded-full px-5 py-3 text-[12px] font-bold uppercase tracking-[0.12em] text-[#172300] lg:block"
-          >
-            Get Started
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="rounded-full border border-white/20 bg-white/10 p-2 backdrop-blur lg:hidden"
-            aria-label="Toggle navigation"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </header>
-
-        {menuOpen && (
-          <div className="absolute left-5 right-5 top-20 z-50 rounded-2xl border border-white/20 bg-[#087cc8]/95 p-4 shadow-2xl backdrop-blur-xl lg:hidden">
-            <a
-              href="#about"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-xl px-3 py-3 text-sm font-medium hover:bg-white/10"
-            >
-              About Us
-            </a>
             <button
               type="button"
               onClick={() => navigate('/register')}
-              className="block w-full rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-white/10"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-xs font-semibold shadow-md shadow-[#256D58]/30 transition-all hover:-translate-y-0.5 cursor-pointer"
             >
-              Register
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="block w-full rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-white/10"
-            >
-              Login
-            </button>
-          </div>
-        )}
-
-        <div className="relative z-20 mx-auto max-w-[920px] px-5 pt-14 text-center sm:pt-16 lg:pt-20">
-          <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white/90 backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-[#dfff75]" />
-            AI marketing workspace
-          </div>
-          <h1 className="mx-auto max-w-[850px] text-balance text-[44px] font-medium leading-[1.02] tracking-[-0.055em] sm:text-[58px] lg:text-[74px]">
-            Turn Your Marketing Into an <span className="text-[#dfff75]">AI Growth Engine</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-[650px] text-pretty text-[15px] leading-7 text-white/80 sm:text-lg">
-            Research competitors, plan content, generate campaigns, and grow your brand — powered by intelligent AI agents.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => navigate('/register')}
-              className="lime-button flex min-w-[170px] items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-[#172300]"
-            >
-              Get Started <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="flex min-w-[150px] items-center justify-center rounded-full border border-white/25 bg-white/10 px-6 py-3.5 text-sm font-bold backdrop-blur transition hover:bg-white/15"
-            >
-              Login
+              <span>Get Started</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="product-stage relative z-20 mx-auto mt-10 h-[270px] max-w-[1060px] px-4 sm:mt-8 sm:h-[300px]">
-          <div className="stage-grid absolute inset-x-[8%] bottom-1 h-[180px]" />
+      {/* =========================================================================
+          HERO SECTION: Pure, Simple Core Motto
+          ========================================================================= */}
+      <main className="flex-1">
+        <section className="relative pt-16 pb-20 md:pt-24 md:pb-24 overflow-hidden">
+          {/* Ambient Glow */}
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#256D58]/15 rounded-full blur-[140px] pointer-events-none" />
 
-          <div className="float-card absolute left-[3%] top-[78px] w-[150px] -rotate-[8deg] bg-white p-3 text-[#1d2430] sm:left-[1%] sm:w-[168px]">
-            <div className="mb-2 flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider text-[#8790a0]">
-              <Search className="h-3 w-3" /> Competitor
+          <div className="max-w-4xl mx-auto px-6 text-center relative z-10 space-y-6">
+            {/* Tag Pill */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#34D399]">
+              <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse" />
+              <span>Autonomous AI Marketing System</span>
             </div>
-            <p className="text-xs font-semibold">Brand analysis</p>
-            <div className="mt-3 space-y-2">
-              <div className="h-2 w-full rounded bg-[#e9edf3]" />
-              <div className="h-2 w-3/4 rounded bg-[#d8e9ff]" />
+
+            {/* Core Motto Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-[1.15]">
+              Turn Company Knowledge Into{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#6EE7B7]">
+                Autonomous Growth Campaigns.
+              </span>
+            </h1>
+
+            {/* Clear, Concise Subtitle */}
+            <p className="text-sm sm:text-base text-[#8E9793] max-w-2xl mx-auto leading-relaxed">
+              Nexora automatically crawls your website, extracts verified corporate context into pgvector, generates weekly multi-channel content for LinkedIn & Instagram, and publishes strictly with your approval.
+            </p>
+
+            {/* Main Action CTAs */}
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-sm font-semibold shadow-lg shadow-[#256D58]/30 transition-all hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>Launch Marketing Workspace</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-semibold transition-all cursor-pointer"
+              >
+                Sign In to Your Workspace
+              </button>
             </div>
           </div>
+        </section>
 
-          <div className="float-card float-slow absolute left-[16%] top-[35px] w-[150px] rotate-[5deg] bg-white p-3 text-[#1d2430] sm:w-[176px]">
-            <div className="flex items-start justify-between">
-              <div><p className="text-[9px] font-bold text-[#8790a0]">MONTHLY GROWTH</p><p className="mt-1 text-xl font-bold">+42%</p></div>
-              <BarChart3 className="h-5 w-5 text-[#258bd8]" />
+        {/* =========================================================================
+            THREE-STEP WORKFLOW: Clean, Simple, Direct
+            ========================================================================= */}
+        <section className="py-16 bg-[#14211C] border-y border-white/10">
+          <div className="max-w-6xl mx-auto px-6 space-y-12">
+            <div className="text-center max-w-xl mx-auto space-y-2">
+              <h2 className="text-xl sm:text-3xl font-bold text-white tracking-tight">
+                How Nexora Works in 3 Simple Steps
+              </h2>
+              <p className="text-xs sm:text-sm text-[#8E9793]">
+                Zero hallucinations, verified company facts, and 100% human governance.
+              </p>
             </div>
-            <div className="mt-3 flex h-12 items-end gap-1">
-              {[35,52,44,68,58,82,74].map((height, index) => (
-                <div key={index} className="flex-1 rounded-t bg-[#55a9df]" style={{ height: `${height}%`, opacity: 0.55 + index * 0.06 }} />
-              ))}
-            </div>
-          </div>
 
-          <div className="float-card float-mid absolute left-[29%] top-[72px] w-[155px] -rotate-[3deg] overflow-hidden text-white sm:w-[174px]">
-            <div className="h-[88px] bg-[radial-gradient(circle_at_30%_20%,#91cdf5,#275ea4_42%,#10264d_100%)] p-3">
-              <div className="text-[9px] font-semibold text-white/75">AI POST</div>
-              <div className="mt-5 h-2 w-4/5 rounded bg-white/25" />
-              <div className="mt-1.5 h-2 w-3/5 rounded bg-white/25" />
-            </div>
-            <div className="bg-[#101827] px-3 py-2 text-[9px]">Campaign ready <Zap className="ml-1 inline h-3 w-3 text-[#dfff75]" /></div>
-          </div>
-
-          <div className="float-card float-fast absolute left-[43%] top-[20px] w-[158px] bg-white p-3 text-[#1d2430] sm:w-[182px]">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-bold">Content calendar</p>
-              <CalendarDays className="h-4 w-4 text-[#258bd8]" />
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 21 }).map((_, index) => (
-                <div key={index} className={`h-3 rounded-sm ${index === 8 || index === 14 ? 'bg-[#dfff75]' : index % 5 === 0 ? 'bg-[#b8dffc]' : 'bg-[#edf1f5]'}`} />
-              ))}
-            </div>
-          </div>
-
-          <div className="float-card absolute left-[58%] top-[72px] w-[156px] -rotate-[2deg] bg-[#101827] p-3 text-white sm:w-[178px]">
-            <p className="text-[9px] text-white/55">COMPETITOR SIGNAL</p>
-            <p className="mt-2 text-sm font-semibold">Market move detected</p>
-            <div className="mt-3 h-1.5 rounded-full bg-white/10">
-              <div className="h-full w-[72%] rounded-full bg-[#dfff75]" />
-            </div>
-          </div>
-
-          <div className="float-card float-slow absolute left-[71%] top-[35px] w-[140px] rotate-[7deg] bg-white p-3 text-[#1d2430] sm:w-[162px]">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e9f7ff]">
-                <Users className="h-4 w-4 text-[#258bd8]" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Step 1 */}
+              <div className="p-6 rounded-2xl bg-[#1A2A24] border border-white/10 space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#256D58]/30 text-[#34D399] flex items-center justify-center font-bold">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-mono uppercase tracking-wider text-[#34D399]">
+                  Step 01 • Automatic Ingestion
+                </div>
+                <h3 className="text-base font-bold text-white">Crawl & Ground Knowledge</h3>
+                <p className="text-xs text-[#8E9793] leading-relaxed">
+                  Celery crawler scans your company website weekly. Real announcements and product details are vectorized in pgvector so every post is factually grounded.
+                </p>
               </div>
-              <div><p className="text-[9px] text-[#8790a0]">LEAD SCORE</p><p className="text-lg font-bold">520k</p></div>
+
+              {/* Step 2 */}
+              <div className="p-6 rounded-2xl bg-[#1A2A24] border border-white/10 space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#256D58]/30 text-[#34D399] flex items-center justify-center font-bold">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-mono uppercase tracking-wider text-[#34D399]">
+                  Step 02 • Campaign Synthesis
+                </div>
+                <h3 className="text-base font-bold text-white">Generate Weekly Batch</h3>
+                <p className="text-xs text-[#8E9793] leading-relaxed">
+                  Autonomous Marketing Agent drafts weekly multi-channel posts tailored for LinkedIn and Instagram, complete with on-brand visual creatives.
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-6 rounded-2xl bg-[#1A2A24] border border-white/10 space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#256D58]/30 text-[#34D399] flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-mono uppercase tracking-wider text-[#34D399]">
+                  Step 03 • Human Governance
+                </div>
+                <h3 className="text-base font-bold text-white">Approve & Publish</h3>
+                <p className="text-xs text-[#8E9793] leading-relaxed">
+                  Zero unapproved dispatches. Review every post via inline inspection. Only approved content is scheduled and dispatched to connected social accounts.
+                </p>
+              </div>
+            </div>
+
+            {/* Trust Highlights */}
+            <div className="pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center gap-2.5 text-xs text-white">
+                <Database className="w-4 h-4 text-[#34D399]" />
+                <span className="font-medium">Strict pgvector Semantic Grounding</span>
+              </div>
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center gap-2.5 text-xs text-white">
+                <Sparkles className="w-4 h-4 text-[#34D399]" />
+                <span className="font-medium">Multi-Platform: LinkedIn + Instagram</span>
+              </div>
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center gap-2.5 text-xs text-white">
+                <Lock className="w-4 h-4 text-[#34D399]" />
+                <span className="font-medium">100% Gated Approval-Only Publishing</span>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="float-card float-mid absolute right-[1%] top-[82px] w-[145px] rotate-[8deg] bg-white p-3 text-[#1d2430] sm:w-[160px]">
-            <p className="text-[9px] font-bold text-[#8790a0]">ENGAGEMENT</p>
-            <div className="mt-2 flex items-end justify-between">
-              <p className="text-xl font-bold">18.4%</p>
-              <BarChart3 className="h-5 w-5 text-[#d2ef62]" />
+        {/* =========================================================================
+            BOTTOM CALL TO ACTION: Simple & High Converting
+            ========================================================================= */}
+        <section className="py-20 text-center relative overflow-hidden">
+          <div className="max-w-2xl mx-auto px-6 space-y-5 relative z-10">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Ready to Put Your Brand on Autonomous Autopilot?
+            </h2>
+            <p className="text-xs sm:text-sm text-[#8E9793] leading-relaxed">
+              Connect your company website today and have your first grounded weekly marketing campaign ready in under five minutes.
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#256D58] hover:bg-[#1E5846] text-white text-sm font-semibold shadow-xl shadow-[#256D58]/30 transition-all hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>Get Started Now</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-            <div className="mt-3 h-12 rounded-lg bg-[linear-gradient(160deg,transparent_48%,#87bfe5_49%,#87bfe5_51%,transparent_52%)]" />
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
-      <section id="about" className="bg-white px-5 py-20 text-[#111827]">
-        <div className="mx-auto max-w-[760px] text-center">
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-[#1688d2]">About Us</p>
-          <h2 className="text-balance text-[38px] font-medium leading-[1.12] tracking-[-0.045em] sm:text-[52px]">
-            One intelligent platform for <span className="text-[#1688d2]">smarter marketing</span>.
-          </h2>
-          <p className="mx-auto mt-5 max-w-[620px] text-pretty text-base leading-7 text-[#697386]">
-            Nexora brings competitor insights, content planning, campaign generation, and performance tracking into one focused workspace.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate('/register')}
-            className="lime-button mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-[#172300]"
-          >
-            Create an Account <ArrowRight className="h-4 w-4" />
-          </button>
+      {/* =========================================================================
+          SITE FOOTER
+          ========================================================================= */}
+      <footer className="py-6 bg-[#090E0D] border-t border-white/5 text-xs text-[#8E9793]">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white">Nexora.AI</span>
+            <span>• Company-Aware Autonomous Marketing Engine</span>
+          </div>
+          <p>© {new Date().getFullYear()} DataFactZ Inc. All rights reserved.</p>
         </div>
-      </section>
+      </footer>
     </div>
   );
 };

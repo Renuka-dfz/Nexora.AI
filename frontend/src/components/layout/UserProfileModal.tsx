@@ -42,7 +42,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       badgeClass: 'bg-[#252525] text-white border-[#252525]',
       permissions: [
         { name: 'Website Crawling & Vector Ingestion', allowed: true, note: 'Full crawl & re-index authority' },
-        { name: 'Editorial Review Queue Sign-Off', allowed: true, note: 'Approve or reject any content draft' },
+        { name: 'Content Approval & Sign-Off', allowed: true, note: 'Approve or reject any content draft' },
         { name: 'Content Studio Asset Generation', allowed: true, note: 'Generate posts, banners, and video reels' },
         { name: 'Inbound Lead Qualification & Scoring', allowed: true, note: 'Full lead evaluation & sales scoring' },
         { name: 'Company Settings & Team Management', allowed: true, note: 'Full administrative control' },
@@ -53,7 +53,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       label: 'Reviewer',
       badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
       permissions: [
-        { name: 'Editorial Review Queue Sign-Off', allowed: true, note: 'Approve, reject, or request revisions' },
+        { name: 'Content Approval & Sign-Off', allowed: true, note: 'Approve, reject, or request revisions' },
         { name: 'Full-Tab Draft Inspection', allowed: true, note: 'Read full copy, banners, and citations' },
         { name: 'Inbound Lead Qualification & Scoring', allowed: true, note: 'View lead scores & sales suggestions' },
         { name: 'Content Studio Asset Generation', allowed: false, note: 'Read-only in Content Studio' },
@@ -66,9 +66,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       permissions: [
         { name: 'Content Studio Asset Generation', allowed: true, note: 'Generate posts, banners, and video reels' },
-        { name: 'Submit Drafts to Review Queue', allowed: true, note: 'Submit drafts for approval' },
+        { name: 'Submit Drafts for Approval', allowed: true, note: 'Submit drafts for approval' },
         { name: 'Inbound Lead Qualification & Scoring', allowed: true, note: 'View lead scores & sales suggestions' },
-        { name: 'Editorial Review Queue Sign-Off', allowed: false, note: 'Requires Admin or Reviewer role' },
+        { name: 'Content Approval & Sign-Off', allowed: false, note: 'Requires Admin or Reviewer role' },
         { name: 'Website Crawling & Vector Ingestion', allowed: false, note: 'Admin only' },
       ],
     },

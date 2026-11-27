@@ -11,12 +11,25 @@ export interface GenerateContentPayload {
 }
 
 export const marketingApi = {
+  getSummary: async (companyId: string): Promise<import('../../types').MarketingSummaryResponse> => {
+    return apiClient<import('../../types').MarketingSummaryResponse>(`/marketing/summary?company_id=${companyId}`);
+  },
+
   listContent: async (
     companyId: string,
-    params?: { status?: string; platform?: string; limit?: number; offset?: number }
+    params?: {
+      status?: string;
+      publish_status?: string;
+      generation_batch_id?: string;
+      platform?: string;
+      limit?: number;
+      offset?: number;
+    }
   ): Promise<ContentListResponse> => {
     const query = new URLSearchParams({ company_id: companyId });
     if (params?.status) query.set('status', params.status);
+    if (params?.publish_status) query.set('publish_status', params.publish_status);
+    if (params?.generation_batch_id) query.set('generation_batch_id', params.generation_batch_id);
     if (params?.platform) query.set('platform', params.platform);
     if (params?.limit) query.set('limit', params.limit.toString());
     if (params?.offset) query.set('offset', params.offset.toString());
@@ -55,6 +68,13 @@ export const marketingApi = {
 
   getLatestWeeklyPlan: async (): Promise<ContentGenerationBatch | null> => {
     return apiClient<ContentGenerationBatch | null>('/marketing/content/batches/latest');
+  },
+
+  runWeeklyGenerationNow: async (platform?: Platform): Promise<ContentGenerationBatch> => {
+    const p = platform || 'instagram';
+    return apiClient<ContentGenerationBatch>(`/marketing/campaigns/run-weekly-now?platform=${p}`, {
+      method: 'POST',
+    });
   },
 
   createContent: async (data: {
@@ -147,6 +167,29 @@ export const marketingApi = {
     });
   },
 
+  generateOpenRouterImage: async (payload: {
+    prompt: string;
+    topic?: string;
+    company_name?: string;
+    headline?: string;
+    pillars?: string[];
+    custom_style?: string;
+    content_id?: string;
+    size?: '1:1' | '4:5' | '16:9';
+  }): Promise<{
+    success: boolean;
+    image_url: string;
+    public_url?: string;
+    prompt: string;
+    model: string;
+    message: string;
+  }> => {
+    return apiClient('/integrations/openrouter/generate-image', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   generateRecraftImage: async (payload: {
     prompt: string;
     topic?: string;
@@ -162,7 +205,7 @@ export const marketingApi = {
     model: string;
     message: string;
   }> => {
-    return apiClient('/integrations/recraft/generate-image', {
+    return apiClient('/integrations/openrouter/generate-image', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
