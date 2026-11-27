@@ -194,14 +194,14 @@ def generate_weekly_batch_task(
         batch.error_message = None
         db.commit()
         company = db.get(DimCompany, batch.company_id)
-        company_name = company.company_name if company else "Nexora"
+        company_name = company.company_name if company else "DataFactZ"
 
     fixed_topics = [
-        "company expertise and core service value",
-        "customer challenges and practical solutions",
-        "industry insights and leadership perspective",
-        "proof-focused benefits and measurable outcomes",
-        "practical advice and a clear next step",
+        "Enterprise AI Agents: Autonomous Partner Data Intake & Reconciliation",
+        "Governed Data Foundations: Enterprise Semantic Architecture & Unified Models",
+        "Power BI Migrations: Modern BI Modernization & Automated Schema Migration",
+        "Field Intelligence Agents: Automated Extraction from Unstructured Service Records",
+        "Incentive Compensation Optimization: Deterministic AI Calculation for Enterprise Sales",
     ]
 
     created_count = 0
@@ -251,52 +251,37 @@ def generate_weekly_batch_task(
                 content.caption = clean_instagram_caption(content.content_text) if batch.platform == "instagram" else content.content_text
                 content.hashtags = _hashtag_text(content.content_text)
                 content.scheduled_at = first_schedule + timedelta(days=index)
-                content.publish_status = "scheduled"
+                content.approval_status = "pending"
+                content.publish_status = "draft"
                 image_title = content.content_title
                 image_summary = (content.caption or content.content_text).split("\n", 1)[0].strip()
                 db.commit()
 
-            image_client = RecraftImageClient()
-            if image_client.is_configured:
-                try:
-                    generated = asyncio.run(image_client.generate_branding_image(
-                        prompt=(
-                            "Create a premium editorial social graphic inspired by high-end enterprise AI campaigns. "
-                            "Use a deep charcoal/navy atmosphere with a luminous amber-orange 3D data object, "
-                            "connected data nodes, and dimensional server or analytics elements on the right. "
-                            "Keep the left side dark and uncluttered for readable post text added after generation. "
-                            "Do not render letters, words, logos, or watermarks. "
-                            f"Post headline: {image_title}. Topic: {post_topic}."
-                        ),
-                        company_name=company_name,
-                        topic=post_topic,
-                        custom_style="premium dark editorial design with glowing amber accents",
-                        size="4:5" if platform == "instagram" else "16:9",
-                    ))
-                    public_url = _save_branded_image(
-                        UUID(str(content_id)),
-                        company_name,
-                        platform,
-                        generated,
-                        image_title,
-                        image_summary,
-                    )
-                    if public_url:
-                        with SessionLocal() as db:
-                            content = db.get(DimContent, UUID(str(content_id)))
-                            if content:
-                                content.image_url = public_url
-                                db.commit()
-                except Exception:
+            from app.modules.marketing.image_service import generate_and_save_marketing_image
+            brief_data = result.get("creative_brief") or {}
+            bullet_matches = re.findall(r"(?:•|\*|-)\s*(\*\*[^*]+\*\*:[^\n]+|[^\n]+)", content.content_text or "")
+            pillars_val = brief_data.get("key_points") or (bullet_matches[:3] if bullet_matches else [
+                "Understand complex data",
+                "Automate repeatable tasks",
+                "Keep humans in control",
+            ])
+
+            try:
+                public_url, provider_used, err = asyncio.run(generate_and_save_marketing_image(
+                    UUID(str(content_id)),
+                    topic=post_topic,
+                    headline=image_title,
+                    subheadline=brief_data.get("subheadline") or "Enterprise workflows with people in control.",
+                    pillars=pillars_val,
+                    platform=platform,
+                    company_name=company_name,
+                    brief=brief_data,
+                ))
+                if not public_url:
                     image_failures += 1
-                    logger.exception("Image generation failed for batch %s post %s", batch_id, content_id)
-            else:
+            except Exception:
                 image_failures += 1
-                logger.error(
-                    "Recraft is not configured for batch %s post %s; set RECRAFT_API_TOKEN",
-                    batch_id,
-                    content_id,
-                )
+                logger.exception("Image generation failed for batch %s post %s", batch_id, content_id)
 
             created_count += 1
         except Exception:
@@ -386,3 +371,59 @@ def publish_scheduled_posts_task() -> dict:
                 db.commit()
                 failed_count += 1
     return {"published": published_count, "failed": failed_count}
+
+
+@celery_app.task(
+    name="marketing.auto_generate_weekly_campaigns",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def auto_generate_weekly_campaigns_task() -> dict:
+    """
+    Weekly background task executed by Celery Beat.
+    Creates a weekly 5-post content generation batch for all active companies.
+    All generated posts are created with approval_status='pending' for user review.
+    """
+    from app.modules.company_knowledge.models import DimCompany
+    from app.modules.identity.models import User
+    from sqlalchemy import select
+
+    created_batches = []
+    with SessionLocal() as db:
+        companies = db.scalars(select(DimCompany)).all()
+
+        for company in companies:
+            admin_user = db.scalars(
+                select(User).where(
+                    User.company_id == company.company_id,
+                    User.is_active == True,
+                ).order_by(User.created_at.asc())
+            ).first()
+
+            if not admin_user:
+                continue
+
+            batch = DimContentGenerationBatch(
+                company_id=company.company_id,
+                user_id=admin_user.user_id,
+                platform="linkedin",
+                mode="weekly_plan",
+                status="queued",
+                prompt="Weekly enterprise thought leadership & capability series",
+                total_requested=5,
+                total_created=0,
+            )
+            db.add(batch)
+            db.flush()
+            created_batches.append(str(batch.batch_id))
+
+        db.commit()
+
+    for batch_id in created_batches:
+        try:
+            generate_weekly_content_batch_task.delay(batch_id)
+            logger.info("Enqueued weekly content generation for batch %s", batch_id)
+        except Exception as exc:
+            logger.error("Failed to enqueue batch %s: %s", batch_id, exc)
+
+    return {"batches_created": len(created_batches), "batch_ids": created_batches}

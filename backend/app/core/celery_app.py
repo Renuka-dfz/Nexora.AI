@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -27,6 +28,14 @@ celery_app.conf.update(
         "publish-approved-scheduled-posts": {
             "task": "marketing.publish_scheduled_posts",
             "schedule": 60.0,
+        },
+        "weekly-website-crawl-sync": {
+            "task": "company_knowledge.auto_crawl_all_companies",
+            "schedule": crontab(hour=2, minute=0, day_of_week=1),
+        },
+        "weekly-batch-post-generation": {
+            "task": "marketing.auto_generate_weekly_campaigns",
+            "schedule": crontab(hour=4, minute=0, day_of_week=1),
         },
     },
 )

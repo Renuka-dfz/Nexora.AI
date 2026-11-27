@@ -18,7 +18,7 @@ authorization. No CompanyMembership dependency.
 """
 
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
 
 from fastapi import (
@@ -283,6 +283,31 @@ def generate_content(
             detail="Generated content draft not found in database.",
         )
 
+    # Automatically generate matching creative image via shared service
+    if content.platform_target in ("instagram", "linkedin"):
+        try:
+            import asyncio
+            from app.modules.marketing.image_service import generate_and_save_marketing_image
+            brief_data = result.get("creative_brief") or {}
+            asyncio.run(generate_and_save_marketing_image(
+                content.content_id,
+                topic=content.topic or request.topic,
+                headline=content.content_title,
+                subheadline=brief_data.get("subheadline") or "Enterprise workflows with people in control.",
+                pillars=brief_data.get("key_points") or [
+                    "Understand complex data",
+                    "Automate repeatable tasks",
+                    "Keep humans in control",
+                ],
+                platform=content.platform_target,
+                company_name="DataFactZ",
+                brief=brief_data,
+                db=db,
+            ))
+            db.refresh(content)
+        except Exception as img_err:
+            logger.warning("Image generation during manual draft creation encountered error: %s", img_err)
+
     workflow_logger.complete_pipeline(
         workflow_name="Marketing Agent Content Studio",
         start_time=start_time,
@@ -386,6 +411,104 @@ def generate_weekly_content(
     }
 
 
+@router.post(
+    "/campaigns/run-weekly-now",
+    response_model=ContentGenerationBatchRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def run_weekly_generation_now(
+    platform: str = Query("instagram", regex="^(instagram|linkedin)$"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Authorized action: Trigger the full weekly campaign generation immediately via Celery.
+    - Idempotency guard: Reuses active batch if one is already queued or generating.
+    - Dispatches asynchronous Celery worker task via Redis (non-blocking).
+    - Posts are stored with approval_status='pending' (never published automatically).
+    """
+    if user.company_id is None:
+        raise HTTPException(status_code=403, detail="Company onboarding required")
+    if user.role not in ("admin", "user"):
+        raise HTTPException(status_code=403, detail="Your role does not permit running weekly automation")
+
+    existing = db.scalar(
+        select(DimContentGenerationBatch)
+        .where(
+            DimContentGenerationBatch.company_id == user.company_id,
+            DimContentGenerationBatch.status.in_(("queued", "generating")),
+        )
+        .order_by(DimContentGenerationBatch.created_at.desc())
+    )
+    if existing:
+        posts = db.scalars(
+            select(DimContent)
+            .where(DimContent.generation_batch_id == existing.batch_id)
+            .order_by(DimContent.scheduled_at.asc())
+        ).all()
+        return {
+            "batch_id": existing.batch_id,
+            "company_id": existing.company_id,
+            "platform": existing.platform,
+            "mode": existing.mode,
+            "status": existing.status,
+            "prompt": existing.prompt,
+            "total_requested": existing.total_requested,
+            "total_created": existing.total_created,
+            "error_message": existing.error_message,
+            "created_at": existing.created_at,
+            "completed_at": existing.completed_at,
+            "posts": posts,
+        }
+
+    batch = DimContentGenerationBatch(
+        company_id=user.company_id,
+        user_id=user.user_id,
+        platform=platform,
+        mode="automated_weekly",
+        status="queued",
+        prompt="DataFactZ Weekly Campaign Run-Now Execution",
+        total_requested=5,
+        total_created=0,
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    try:
+        from app.modules.marketing.tasks import generate_weekly_batch_task
+        generate_weekly_batch_task.delay(
+            str(batch.batch_id),
+            "post",
+            "Generate authentic DataFactZ marketing creative emphasizing production AI agents and governed data foundations.",
+            "authoritative yet accessible",
+        )
+    except Exception as exc:
+        batch.status = "failed"
+        batch.error_message = "Background generation queue unavailable. Ensure Redis and Celery worker are running."
+        batch.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="The background generation queue is unavailable.",
+        ) from exc
+
+    return {
+        "batch_id": batch.batch_id,
+        "company_id": batch.company_id,
+        "platform": batch.platform,
+        "mode": batch.mode,
+        "status": batch.status,
+        "prompt": batch.prompt,
+        "total_requested": batch.total_requested,
+        "total_created": batch.total_created,
+        "error_message": batch.error_message,
+        "created_at": batch.created_at,
+        "completed_at": batch.completed_at,
+        "posts": [],
+    }
+
+
 @router.get(
     "/content/batches/latest",
     response_model=ContentGenerationBatchRead | None,
@@ -461,6 +584,53 @@ def get_weekly_generation_batch(
     }
 
 
+@router.get(
+    "/summary",
+    status_code=status.HTTP_200_OK,
+)
+def get_marketing_summary(
+    company_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Summary metrics for Weekly Automation & Review Queue notification count.
+    """
+    ensure_company_access(db, user, company_id)
+
+    from app.modules.company_knowledge.models import CrawledPage
+
+    crawled_pages = db.scalar(
+        select(func.count()).select_from(CrawledPage).where(CrawledPage.company_id == company_id)
+    ) or 0
+
+    generated_posts = db.scalar(
+        select(func.count()).select_from(DimContent).where(DimContent.company_id == company_id)
+    ) or 0
+
+    scheduled_posts = db.scalar(
+        select(func.count()).select_from(DimContent).where(
+            DimContent.company_id == company_id,
+            DimContent.publish_status.in_(["scheduled", "published"]),
+        )
+    ) or 0
+
+    pending_reviews = db.scalar(
+        select(func.count()).select_from(DimContent).where(
+            DimContent.company_id == company_id,
+            DimContent.approval_status == "pending",
+        )
+    ) or 0
+
+    return {
+        "company_id": str(company_id),
+        "crawled_pages": crawled_pages,
+        "generated_posts": generated_posts,
+        "scheduled_posts": scheduled_posts,
+        "pending_reviews": pending_reviews,
+    }
+
+
 # =====================================================
 # 3. LIST MARKETING CONTENT
 # ALL ROLES
@@ -483,6 +653,15 @@ def list_content(
         default=None,
         alias="status",
         pattern="^(draft|pending|approved|rejected)$",
+    ),
+
+    publish_status: str | None = Query(
+        default=None,
+        pattern="^(draft|scheduled|publishing|published|failed)$",
+    ),
+
+    generation_batch_id: UUID | None = Query(
+        default=None,
     ),
 
     limit: int = Query(
@@ -516,6 +695,16 @@ def list_content(
     if status_filter is not None:
         filters.append(
             DimContent.approval_status == status_filter
+        )
+
+    if publish_status is not None:
+        filters.append(
+            DimContent.publish_status == publish_status
+        )
+
+    if generation_batch_id is not None:
+        filters.append(
+            DimContent.generation_batch_id == generation_batch_id
         )
 
     if platform is not None:
@@ -757,6 +946,16 @@ def _transition_content(
     }
 
     content.approval_status = new_status[action]
+
+    if action == "reject":
+        # Deschedule rejected post so Celery Beat will never publish it
+        content.publish_status = "draft"
+        content.scheduled_at = None
+    elif action == "approve":
+        # Ensure approved post is marked scheduled for publishing
+        content.publish_status = "scheduled"
+        if not content.scheduled_at:
+            content.scheduled_at = datetime.now(timezone.utc) + timedelta(hours=2)
 
     db.commit()
     db.refresh(content)

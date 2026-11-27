@@ -34,6 +34,10 @@ from app.integrations.recraft.routes import (
     router as recraft_router,
 )
 
+from app.integrations.openrouter.routes import (
+    router as openrouter_router,
+)
+
 from app.integrations.linkedin.routes import (
     router as linkedin_router,
 )
@@ -62,9 +66,15 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://172.20.64.1:5173",
     ],
+    allow_origin_regex=r"^https?://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,6 +122,11 @@ app.include_router(
 
 app.include_router(
     recraft_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    openrouter_router,
     prefix="/api/v1",
 )
 

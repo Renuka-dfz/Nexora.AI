@@ -124,20 +124,31 @@ def retrieve_marketing_knowledge_node(
         content_type=content_type,
     )
 
+    context_text = context_payload.context_text
+    structured_facts = [f.model_dump() for f in context_payload.structured_facts]
+    semantic_chunks = [c.model_dump() for c in context_payload.semantic_results]
+
+    # Grounding fallback: if pgvector or database crawl is empty, ground in official DataFactZ brand facts
+    if not context_text or (len(structured_facts) == 0 and len(semantic_chunks) == 0):
+        from app.agents.marketing_agent.brand import get_brand_knowledge_context
+        brand_ctx = get_brand_knowledge_context()
+        context_text = brand_ctx["context_text"]
+        structured_facts = brand_ctx["structured_facts"]
+
     workflow_logger.rag_retrieval(
-        mode=context_payload.mode.value,
-        facts_count=len(context_payload.structured_facts),
-        chunks_count=len(context_payload.semantic_results),
-        sources=[f.source_url for f in context_payload.structured_facts if f.source_url],
+        mode=context_payload.mode.value if (len(context_payload.structured_facts) > 0 or len(context_payload.semantic_results) > 0) else "brand_grounded",
+        facts_count=len(structured_facts),
+        chunks_count=len(semantic_chunks),
+        sources=[f.get("source_url") or "https://datafactz.ai/" for f in structured_facts if isinstance(f, dict)],
     )
 
     return {
         **state,
-        "company_name": context_payload.company_name or state.get("company_name"),
+        "company_name": context_payload.company_name or state.get("company_name") or "DataFactZ",
         "knowledge_mode": context_payload.mode.value,
-        "company_context": context_payload.context_text,
-        "structured_facts": [f.model_dump() for f in context_payload.structured_facts],
-        "semantic_chunks": [c.model_dump() for c in context_payload.semantic_results],
+        "company_context": context_text,
+        "structured_facts": structured_facts,
+        "semantic_chunks": semantic_chunks,
         "status": "context_retrieved",
     }
 
@@ -184,9 +195,9 @@ def generate_grounded_research_node(state: MarketingAgentState) -> MarketingAgen
 
     model: str | None = state.get("model")
     instructions: str = state.get("instructions", "")
-    company_name = state.get("company_name") or "the company"
+    company_name = state.get("company_name") or "DataFactZ"
     research_query = (
-        f"What are {company_name}'s documented AI agents, delivery methodologies, industry use cases, and data platform foundations regarding {topic}?"
+        f"What are {company_name}'s documented AI agents, analytics capabilities, data engineering offerings, and enterprise solutions regarding {topic}?"
     )
     research_response = generate_grounded_answer(
         question=research_query,
@@ -284,24 +295,35 @@ def generate_draft_node(state: MarketingAgentState) -> MarketingAgentState:
 
     content_type = state.get("content_type", "post")
 
+    # Build structured visual brief representation
+    if draft.visual_headline:
+        pillars_str = "\n".join(f"- {p}" for p in draft.pillars) if draft.pillars else f"- {topic} enterprise value"
+        visual_block = (
+            f"### VISUAL ASSET SPECIFICATION\n"
+            f"**Headline:** {draft.visual_headline}\n"
+            f"**Subhead:** {draft.visual_subhead}\n"
+            f"**Core Pillars:**\n{pillars_str}\n"
+            f"**Metric:** {draft.metric_highlight or 'Data & AI Consultancy Since 2004'}\n"
+            f"**Visual Concept:** {draft.creative_brief.visual_concept if draft.creative_brief else 'Enterprise workflow diagram'}"
+        )
+    else:
+        visual_block = ""
+
     if platform.lower() == "instagram":
-        # Dedicated structured format for Instagram with separate Caption, Description, Hashtags, and SEO Keywords
+        # Dedicated structured format for Instagram: concise caption + hashtags + visual spec
         caption_text = (draft.caption or draft.hook or topic).strip()
-        desc_text = (draft.description or draft.body or "").strip()
         tags_text = " ".join(t if t.startswith("#") else f"#{t}" for t in (draft.hashtags or ["#DataFactZ", "#EnterpriseAI", "#DataEngineering"]))
-        seo_text = ", ".join(draft.seo_keywords or [f"{topic.lower()}", "enterprise AI", "pgvector", "data engineering"])
+        seo_text = ", ".join(draft.seo_keywords or [f"{topic.lower()}", "enterprise AI", "data analytics", "power bi"])
 
         parts = [
             f"### CAPTION\n{caption_text}",
-            f"### DESCRIPTION\n{desc_text}",
             f"### HASHTAGS\n{tags_text}",
             f"### SEO KEYWORDS\n{seo_text}",
         ]
+        if visual_block:
+            parts.insert(0, visual_block)
 
-        if content_type == "image" and draft.visual_headline:
-            pillars_str = "\n".join(f"- {p}" for p in draft.pillars) if draft.pillars else f"- {topic} architecture"
-            parts.insert(0, f"### VISUAL ASSET SPECIFICATION\n**Headline:** {draft.visual_headline}\n**Subhead:** {draft.visual_subhead}\n**Core Pillars:**\n{pillars_str}\n**Metric:** {draft.metric_highlight or 'pgvector Indexed'}")
-        elif content_type == "video" and draft.storyboard_scenes:
+        if content_type == "video" and draft.storyboard_scenes:
             scene_lines = [
                 f"- Scene {s.get('scene_num', i+1)} ({s.get('time_range', '')}): **{s.get('title', '')}** — Visual: {s.get('visual', '')} | Voiceover: \"{s.get('voiceover', '')}\""
                 for i, s in enumerate(draft.storyboard_scenes)
@@ -310,7 +332,7 @@ def generate_draft_node(state: MarketingAgentState) -> MarketingAgentState:
 
         full_content = "\n\n".join(parts)
     else:
-        # Standard unified format for LinkedIn (No broken-out fields needed)
+        # Standard unified format for LinkedIn
         full_content = draft.body.strip()
         if draft.hook and draft.hook.strip() not in full_content:
             full_content = f"{draft.hook.strip()}\n\n{full_content}"
@@ -321,15 +343,10 @@ def generate_draft_node(state: MarketingAgentState) -> MarketingAgentState:
             if tag_line not in full_content:
                 full_content = f"{full_content}\n\n{tag_line}"
 
-        if content_type == "image" and draft.visual_headline:
-            pillars_str = "\n".join(f"- {p}" for p in draft.pillars) if draft.pillars else f"- {topic} architecture"
-            full_content = f"### VISUAL GRAPHIC DIRECTION\n**Headline:** {draft.visual_headline}\n**Subhead:** {draft.visual_subhead}\n{pillars_str}\n\n{full_content}"
-        elif content_type == "video" and draft.storyboard_scenes:
-            scene_lines = [
-                f"- Scene {s.get('scene_num', i+1)} ({s.get('time_range', '')}): **{s.get('title', '')}**\n  *Visual:* {s.get('visual', '')}\n  *Voiceover:* \"{s.get('voiceover', '')}\""
-                for i, s in enumerate(draft.storyboard_scenes)
-            ]
-            full_content = f"### REEL STORYBOARD (60 SECONDS)\n" + "\n".join(scene_lines) + f"\n\n### POST COPY\n{full_content}"
+        if visual_block:
+            full_content = f"{visual_block}\n\n{full_content}"
+
+    brief_dict = draft.creative_brief.model_dump() if draft.creative_brief else None
 
     return {
         **state,
@@ -339,6 +356,7 @@ def generate_draft_node(state: MarketingAgentState) -> MarketingAgentState:
         "draft_cta": draft.call_to_action,
         "hashtags": draft.hashtags,
         "sources": draft.sources,
+        "creative_brief": brief_dict,
         "approval_status": "draft",
         "status": "draft_generated",
     }

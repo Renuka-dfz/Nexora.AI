@@ -40,6 +40,12 @@ class MarketingAgentState(TypedDict, total=False):
     # Grounded Research Output (from rag/llm.py)
     grounded_research: dict[str, Any] | None
 
+    # Structured Creative Brief & Visual Pipeline
+    creative_brief: dict[str, Any] | None
+    image_prompt: str | None
+    image_url: str | None
+    image_status: str | None
+
     # Content Planning & Drafting
     outline: dict[str, Any] | None
     draft_title: str | None

@@ -13,13 +13,18 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.agents.marketing_agent.brand import get_company_brand_config
 from app.agents.marketing_agent.prompts import (
     ARTICLE_SYSTEM_PROMPT,
     INSTAGRAM_POST_SYSTEM_PROMPT,
     LINKEDIN_POST_SYSTEM_PROMPT,
     OUTLINE_SYSTEM_PROMPT,
 )
-from app.agents.marketing_agent.schemas import ContentOutline, MarketingDraftOutput
+from app.agents.marketing_agent.schemas import (
+    ContentOutline,
+    MarketingCreativeBrief,
+    MarketingDraftOutput,
+)
 from app.rag.llm import (
     _extract_json_block,
     _extract_sources_from_context,
@@ -198,59 +203,46 @@ Generate the final {format_label} draft as JSON:"""
         default_cta = outline.call_to_action if outline else ""
 
         caption = data.get("caption") or data.get("hook") or default_hook
-        description = data.get("description") or data.get("body") or ""
+        description = data.get("description") or data.get("body") or caption
         seo_keywords = data.get("seo_keywords") or [
-            f"{topic.lower()} enterprise",
-            "data platform architecture",
-            "deterministic ai agent",
-            "postgresql pgvector",
-            "governed ai pipelines",
+            f"{topic.lower()}",
+            "enterprise ai agents",
+            "data analytics",
+            "power bi consulting",
+            "data engineering",
         ]
-        visual_headline = data.get("visual_headline") or f"{topic}: Enterprise AI"
-        visual_subhead = data.get("visual_subhead") or "Deterministic Agent Architecture & Governed Data Pipelines"
+        visual_headline = data.get("visual_headline") or f"{topic}: Built for Real Work"
+        visual_subhead = data.get("visual_subhead") or "Enterprise workflows with people in control."
         pillars = data.get("pillars") or [
-            "Pillar 1: Governed Enterprise Data Ingestion (pgvector)",
-            "Pillar 2: Deterministic Multi-Agent LangGraph Workflows",
-            "Pillar 3: Human-in-the-Loop Audit & Compliance Trail",
+            "Understand complex data",
+            "Automate repeatable tasks",
+            "Keep humans in control",
         ]
-        metric_highlight = data.get("metric_highlight") or "99.4% Factual Accuracy Grounding"
-        storyboard_scenes = data.get("storyboard_scenes") or [
-            {
-                "scene_num": 1,
-                "time_range": "0:00 - 0:15",
-                "title": "The Production Reality",
-                "visual": "Split-screen comparing fragile one-off AI scripts with governed pipeline architecture.",
-                "voiceover": f"Most enterprise teams struggle with ungoverned AI. Here is how production architectures deliver {topic}.",
-            },
-            {
-                "scene_num": 2,
-                "time_range": "0:15 - 0:35",
-                "title": "Architectural Breakdown",
-                "visual": "Flow diagram highlighting PostgreSQL pgvector retrieval and semantic chunk normalization.",
-                "voiceover": "By combining 768-dimensional vector indexing with strict deterministic schema contracts, hallucinations are eliminated.",
-            },
-            {
-                "scene_num": 3,
-                "time_range": "0:35 - 0:50",
-                "title": "Enterprise Governance & Audit",
-                "visual": "Reviewer inspection dashboard approving verified facts with real-time citations.",
-                "voiceover": "Every claim is audited against company knowledge before publication or client dispatch.",
-            },
-            {
-                "scene_num": 4,
-                "time_range": "0:50 - 1:00",
-                "title": "Call to Action",
-                "visual": "DataFactZ brand endcard with action button and enterprise contact info.",
-                "voiceover": "Explore governed agent workflows for your enterprise today. Link in bio.",
-            },
-        ]
+        visual_concept = data.get("visual_concept") or f"Enterprise workflow diagram showing {topic} with human-in-the-loop review."
+        layout_type = data.get("layout_type") or "infographic"
+        metric_highlight = data.get("metric_highlight") or "Data & AI Consulting Since 2004"
+        brand_config = get_company_brand_config()
+
+        creative_brief = MarketingCreativeBrief(
+            topic=topic,
+            platform=platform,
+            headline=visual_headline,
+            subheadline=visual_subhead,
+            key_points=pillars[:4],
+            visual_concept=visual_concept,
+            layout_type=layout_type,
+            call_to_action=data.get("call_to_action") or default_cta,
+            caption_angle="executive_insight",
+            brand_style=brand_config,
+            source_references=verified_sources,
+        )
 
         return MarketingDraftOutput(
             title=data.get("title") or default_title,
             hook=data.get("hook") or caption or default_hook,
             body=data.get("body") or description,
             call_to_action=data.get("call_to_action") or default_cta,
-            hashtags=data.get("hashtags", []),
+            hashtags=data.get("hashtags") or ["#DataFactZ", "#EnterpriseAI", "#Analytics", "#DataEngineering"],
             sources=verified_sources,
             caption=caption,
             description=description,
@@ -259,38 +251,53 @@ Generate the final {format_label} draft as JSON:"""
             visual_subhead=visual_subhead,
             pillars=pillars,
             metric_highlight=metric_highlight,
-            storyboard_scenes=storyboard_scenes,
+            storyboard_scenes=data.get("storyboard_scenes") or [],
+            creative_brief=creative_brief,
             status="draft",
         )
     except Exception as exc:
         logger.exception("Failed to generate marketing draft copy: %s", exc)
         default_title = outline.title if outline else topic
-        default_hook = outline.hook if outline else f"Why enterprise teams are rethinking {topic} in production."
-        default_sections = outline.key_sections if outline else ["Strategic Imperative", "Engineering Reality", "Business Impact"]
-        default_cta = outline.call_to_action if outline else "Let's connect and discuss your approach."
+        default_hook = outline.hook if outline else f"Why enterprise leaders rely on DataFactZ for production {topic}."
+        default_cta = outline.call_to_action if outline else "Explore practical AI workflows at datafactz.ai."
+        brand_config = get_company_brand_config()
+
+        creative_brief = MarketingCreativeBrief(
+            topic=topic,
+            platform=platform,
+            headline=f"{topic}: Built for Real Work",
+            subheadline="Enterprise workflows with people in control.",
+            key_points=[
+                "Understand complex data",
+                "Automate repeatable tasks",
+                "Keep humans in control",
+            ],
+            visual_concept=f"Clean enterprise diagram illustrating {topic} data flow and human review.",
+            layout_type="process_flow",
+            call_to_action=default_cta,
+            caption_angle="practical_delivery",
+            brand_style=brand_config,
+            source_references=sources[:3],
+        )
 
         return MarketingDraftOutput(
             title=default_title,
             hook=default_hook,
-            body=(
-                f"{default_hook}\n\n"
-                f"When addressing {topic}, production teams focus on what gets things done:\n"
-                + "\n".join(f"- {s}" for s in default_sections)
-                + f"\n\n{research_summary[:300]}..."
-            ),
+            body=f"{default_hook}\n\nAt DataFactZ, we build AI agents and analytics on data foundations engineered for production. Learn more at datafactz.ai.",
             call_to_action=default_cta,
-            hashtags=["#EnterpriseAI", "#DataEngineering", "#TechStrategy", "#DataFactZ"],
+            hashtags=["#DataFactZ", "#EnterpriseAI", "#Analytics", "#DataEngineering"],
             sources=sources[:3],
             caption=default_hook,
-            description=f"When addressing {topic}, enterprise production requires deterministic contracts and governed data pipelines. Learn how DataFactZ engineers real-world outcomes.",
-            seo_keywords=[f"{topic.lower()}", "enterprise ai architecture", "pgvector rag", "data engineering", "ai governance"],
-            visual_headline=f"{topic}: Enterprise AI Architecture",
-            visual_subhead="Proven Delivery & Governed Vector Ingestion",
+            description=f"At DataFactZ, we design and run AI agents on data foundations we engineer ourselves. Learn more at datafactz.ai.",
+            seo_keywords=[f"{topic.lower()}", "enterprise ai agents", "power bi", "data engineering"],
+            visual_headline=f"{topic}: Built for Real Work",
+            visual_subhead="Enterprise workflows with people in control.",
             pillars=[
-                "Pillar 1: Governed Enterprise Ingestion",
-                "Pillar 2: Governed Multi-Agent Workflow Pipelines",
-                "Pillar 3: Human Verification & Audit Compliance",
+                "Understand complex data",
+                "Automate repeatable tasks",
+                "Keep humans in control",
             ],
-            metric_highlight="99.4% Factual Grounding",
+            metric_highlight="Data & AI Consulting Since 2004",
+            creative_brief=creative_brief,
             status="draft",
         )

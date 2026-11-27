@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Recraft V4.1 Flash V2 image generation
     RECRAFT_API_TOKEN: str = ""
 
+    # OpenRouter Image Generation API (recraft/recraft-v3, flux, etc.)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_IMAGE_MODEL: str = "recraft/recraft-v3"
+
     # OpenAI API key is used by the text generation and evaluation integrations.
     OPENAI_API_KEY: str = ""
 

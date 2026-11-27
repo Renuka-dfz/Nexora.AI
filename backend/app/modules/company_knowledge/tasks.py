@@ -190,3 +190,67 @@ def index_company_knowledge_task(company_id: str, batch_size: int = 50) -> dict:
             result,
         )
         return result
+
+
+@celery_app.task(
+    name="company_knowledge.auto_crawl_all_companies",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def auto_crawl_all_companies_task() -> dict:
+    """
+    Weekly background task executed by Celery Beat.
+    Iterates over all companies with a configured website URL and enqueues crawling.
+    """
+    from app.modules.company_knowledge.models import DimCompany
+    from sqlalchemy import select
+
+    triggered_jobs = []
+    with SessionLocal() as db:
+        companies = db.scalars(
+            select(DimCompany).where(
+                DimCompany.website_url.is_not(None),
+            )
+        ).all()
+
+        for company in companies:
+            url = (company.website_url or "").strip()
+            if not url or not (url.startswith("http://") or url.startswith("https://")):
+                continue
+
+            # Check if there is already an active running crawl
+            active_job = db.scalars(
+                select(WebsiteCrawlJob).where(
+                    WebsiteCrawlJob.company_id == company.company_id,
+                    WebsiteCrawlJob.status.in_(["queued", "running"]),
+                )
+            ).first()
+
+            if active_job:
+                logger.info(
+                    "Skipping company %s: crawl job %s is already active.",
+                    company.company_id,
+                    active_job.job_id,
+                )
+                continue
+
+            crawl_job = WebsiteCrawlJob(
+                company_id=company.company_id,
+                website_url=url,
+                status="queued",
+            )
+            db.add(crawl_job)
+            db.flush()
+
+            triggered_jobs.append({"company_id": str(company.company_id), "job_id": str(crawl_job.job_id)})
+
+        db.commit()
+
+    for item in triggered_jobs:
+        try:
+            crawl_website_task.delay(item["job_id"])
+            logger.info("Enqueued weekly crawl for company %s (job %s)", item["company_id"], item["job_id"])
+        except Exception as exc:
+            logger.error("Failed to enqueue crawl for job %s: %s", item["job_id"], exc)
+
+    return {"total_triggered": len(triggered_jobs), "jobs": triggered_jobs}

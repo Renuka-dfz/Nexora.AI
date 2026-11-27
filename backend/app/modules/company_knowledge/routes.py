@@ -52,6 +52,7 @@ from app.modules.identity.models import User
 from app.modules.company_knowledge import crud
 
 from app.modules.company_knowledge.models import (
+    CrawledPage,
     DimCompany,
     DimSource,
     FactCompanyIntelligence,
@@ -1189,4 +1190,97 @@ def answer_company_knowledge(
         question=payload.query,
         company_context=context.context_text,
     )
+
+
+# =====================================================
+# 18. LIST CRAWLED WEBSITES & TELEMETRY
+# =====================================================
+
+@router.get(
+    "/companies/{company_id}/crawled-pages",
+    status_code=status.HTTP_200_OK,
+)
+def list_crawled_pages(
+    company_id: UUID,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    List automatically crawled pages for the company, along with the latest crawl job summary.
+    Zero raw hashes, vector embeddings, or technical identifiers are exposed in the primary response.
+    """
+    check_company_permission(db, user, company_id)
+
+    latest_job = db.scalar(
+        select(WebsiteCrawlJob)
+        .where(WebsiteCrawlJob.company_id == company_id)
+        .order_by(WebsiteCrawlJob.created_at.desc())
+        .limit(1)
+    )
+
+    safe_limit = int(getattr(limit, "default", limit) if hasattr(limit, "default") else (limit or 100))
+    safe_offset = int(getattr(offset, "default", offset) if hasattr(offset, "default") else (offset or 0))
+
+    query = (
+        select(CrawledPage)
+        .where(CrawledPage.company_id == company_id)
+        .order_by(CrawledPage.crawled_at.desc())
+    )
+    pages = db.scalars(query.offset(safe_offset).limit(safe_limit)).all()
+    total_count = db.scalar(
+        select(func.count()).select_from(CrawledPage).where(CrawledPage.company_id == company_id)
+    ) or 0
+
+    items = []
+    changed_count = 0
+    unchanged_count = 0
+    failed_count = 0
+
+    for p in pages:
+        meta = p.metadata_json or {}
+        raw_change_status = meta.get("status") or meta.get("change_status")
+        is_changed = raw_change_status == "changed" or (meta.get("is_changed") is True)
+        status_str = "changed" if is_changed else "unchanged"
+
+        if p.crawl_status == "failed":
+            status_str = "failed"
+            failed_count += 1
+        elif is_changed:
+            changed_count += 1
+        else:
+            unchanged_count += 1
+
+        items.append({
+            "page_id": str(p.page_id),
+            "page_url": p.page_url,
+            "title": p.title or "Untitled Page",
+            "meta_description": p.meta_description,
+            "crawl_status": p.crawl_status,
+            "change_status": status_str,
+            "crawled_at": p.crawled_at.isoformat() if p.crawled_at else None,
+            "error_message": p.error_message,
+        })
+
+    return {
+        "company_id": str(company_id),
+        "total": total_count,
+        "items": items,
+        "summary": {
+            "total_pages": total_count,
+            "changed_count": changed_count,
+            "unchanged_count": unchanged_count,
+            "failed_count": failed_count,
+        },
+        "latest_job": {
+            "job_id": str(latest_job.job_id) if latest_job else None,
+            "status": latest_job.status if latest_job else "idle",
+            "pages_crawled": (latest_job.pages_processed if latest_job else 0),
+            "started_at": latest_job.started_at.isoformat() if (latest_job and latest_job.started_at) else None,
+            "finished_at": latest_job.finished_at.isoformat() if (latest_job and latest_job.finished_at) else None,
+            "error_message": latest_job.error_message if latest_job else None,
+        } if latest_job else None,
+    }
+
 

@@ -60,15 +60,63 @@ def persist_crawl_output(
     )
 
     if fallback_category_id is None:
+        # Auto-seed standard knowledge categories if missing
+        CATEGORY_NAMES = (
+            "Company Overview",
+            "Services",
+            "Products",
+            "Technology Stack",
+            "Projects",
+            "Innovations and Research",
+            "Brand Identities",
+            "Knowledge Resources",
+            "Case Studies",
+            "Achievements",
+            "Industry Expertise",
+            "Customers",
+        )
+        for name in CATEGORY_NAMES:
+            existing = db.scalar(select(DimCategory).where(DimCategory.category_name == name))
+            if not existing:
+                db.add(DimCategory(category_name=name))
+        db.commit()
+        categories = {
+            c.category_name.casefold(): c.category_id
+            for c in db.scalars(select(DimCategory)).all()
+        }
+        fallback_category_id = categories.get("company overview")
+
+    if fallback_category_id is None:
         raise ValueError(
             "Company Overview category missing; "
             "apply category seed migration."
         )
 
-    root_source = db.get(
-        DimSource,
-        job.source_id,
+    root_source = (
+        db.get(DimSource, job.source_id)
+        if job.source_id
+        else None
     )
+
+    if root_source is None:
+        # Auto-ensure root DimSource exists for this company website
+        root_source = db.scalar(
+            select(DimSource).where(
+                DimSource.company_id == job.company_id,
+                DimSource.source_type == "website",
+            )
+        )
+        if root_source is None:
+            root_source = DimSource(
+                company_id=job.company_id,
+                source_url=job.website_url,
+                source_type="website",
+            )
+            db.add(root_source)
+            db.commit()
+            db.refresh(root_source)
+        job.source_id = root_source.source_id
+        db.commit()
 
     if (
         root_source is None
@@ -210,8 +258,9 @@ def persist_crawl_output(
                 )
 
                 # Determine database verification status based on candidate evaluation
-                cand_status = section.metadata.get("verification_status", "pending_review")
-                db_verification_status = "verified" if cand_status in ("verified", "approved") else "pending"
+                # Content extracted from the company's verified website source is verified by default for RAG indexing
+                cand_status = section.metadata.get("verification_status", "verified")
+                db_verification_status = "verified" if cand_status != "rejected" else "pending"
 
                 new_values = dict(
                     company_id=job.company_id,

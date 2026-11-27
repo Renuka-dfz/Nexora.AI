@@ -38,80 +38,85 @@ def upgrade() -> None:
     )
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    op.create_table(
-        "rag_document_chunk",
-        sa.Column("chunk_id", sa.UUID(), nullable=False),
-        sa.Column("company_id", sa.UUID(), nullable=False),
-        sa.Column("intelligence_id", sa.UUID(), nullable=False),
-        sa.Column("page_id", sa.UUID(), nullable=False),
-        sa.Column("source_id", sa.UUID(), nullable=False),
-        sa.Column("chunk_index", sa.Integer(), nullable=False),
-        sa.Column("heading_path", sa.Text(), nullable=False),
-        sa.Column("source_url", sa.Text(), nullable=False),
-        sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("content_hash", sa.String(length=64), nullable=False),
-        sa.Column(
-            "source_content_hash",
-            sa.String(length=64),
-            nullable=False,
-        ),
-        sa.Column("token_count", sa.Integer(), nullable=False),
-        sa.Column(
-            "embedding_model",
-            sa.String(length=255),
-            nullable=False,
-        ),
-        sa.Column("embedding", VECTOR(384), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(
-            ["company_id"],
-            ["dim_company.company_id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["intelligence_id"],
-            ["fact_company_intelligence.fact_id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["page_id"],
-            ["crawled_page.page_id"],
-        ),
-        sa.ForeignKeyConstraint(
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+
+    if "rag_document_chunk" not in tables:
+        op.create_table(
+            "rag_document_chunk",
+            sa.Column("chunk_id", sa.UUID(), nullable=False),
+            sa.Column("company_id", sa.UUID(), nullable=False),
+            sa.Column("intelligence_id", sa.UUID(), nullable=False),
+            sa.Column("page_id", sa.UUID(), nullable=False),
+            sa.Column("source_id", sa.UUID(), nullable=False),
+            sa.Column("chunk_index", sa.Integer(), nullable=False),
+            sa.Column("heading_path", sa.Text(), nullable=False),
+            sa.Column("source_url", sa.Text(), nullable=False),
+            sa.Column("content", sa.Text(), nullable=False),
+            sa.Column("content_hash", sa.String(length=64), nullable=False),
+            sa.Column(
+                "source_content_hash",
+                sa.String(length=64),
+                nullable=False,
+            ),
+            sa.Column("token_count", sa.Integer(), nullable=False),
+            sa.Column(
+                "embedding_model",
+                sa.String(length=255),
+                nullable=False,
+            ),
+            sa.Column("embedding", VECTOR(384), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                nullable=False,
+            ),
+            sa.ForeignKeyConstraint(
+                ["company_id"],
+                ["dim_company.company_id"],
+            ),
+            sa.ForeignKeyConstraint(
+                ["intelligence_id"],
+                ["fact_company_intelligence.fact_id"],
+            ),
+            sa.ForeignKeyConstraint(
+                ["page_id"],
+                ["crawled_page.page_id"],
+            ),
+            sa.ForeignKeyConstraint(
+                ["source_id"],
+                ["dim_source.source_id"],
+            ),
+            sa.PrimaryKeyConstraint("chunk_id"),
+            sa.UniqueConstraint(
+                "intelligence_id",
+                "chunk_index",
+                "embedding_model",
+                name="uq_rag_fact_chunk_model",
+            ),
+        )
+        op.create_index(
+            "ix_rag_company_active",
+            "rag_document_chunk",
+            ["company_id", "is_active"],
+        )
+        op.create_index(
+            "ix_rag_source",
+            "rag_document_chunk",
             ["source_id"],
-            ["dim_source.source_id"],
-        ),
-        sa.PrimaryKeyConstraint("chunk_id"),
-        sa.UniqueConstraint(
-            "intelligence_id",
-            "chunk_index",
-            "embedding_model",
-            name="uq_rag_fact_chunk_model",
-        ),
-    )
-    op.create_index(
-        "ix_rag_company_active",
-        "rag_document_chunk",
-        ["company_id", "is_active"],
-    )
-    op.create_index(
-        "ix_rag_source",
-        "rag_document_chunk",
-        ["source_id"],
-    )
-    op.create_index(
-        "ix_rag_intelligence",
-        "rag_document_chunk",
-        ["intelligence_id"],
-    )
+        )
+        op.create_index(
+            "ix_rag_intelligence",
+            "rag_document_chunk",
+            ["intelligence_id"],
+        )
 
 
 def downgrade() -> None:

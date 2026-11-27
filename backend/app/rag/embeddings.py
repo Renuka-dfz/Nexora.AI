@@ -90,15 +90,17 @@ def _prepare_texts(
         )
 
         if count > token_limit:
-            raise EmbeddingError(
-                f"Input {index} contains {count} tokens. "
-                f"Limit is {token_limit}."
-            )
+            # Safely truncate text to fit strictly within model token_limit
+            try:
+                tokens = model.tokenizer.encode(cleaned, truncation=True, max_length=token_limit)
+                cleaned = model.tokenizer.decode(tokens, skip_special_tokens=True)
+                count = count_tokens(cleaned, model)
+            except Exception:
+                pass
 
-        if count > model.max_seq_length:
-            raise EmbeddingError(
-                "Model token limit exceeded"
-            )
+            while count > token_limit and len(cleaned) > 20:
+                cleaned = cleaned[: int(len(cleaned) * 0.9)].rstrip()
+                count = count_tokens(cleaned, model)
 
         output.append(cleaned)
 

@@ -42,6 +42,7 @@ class LoginRequest(BaseModel):
 class TokenRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    user: "UserRead | None" = None
 
 
 # =====================================================

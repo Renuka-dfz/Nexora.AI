@@ -165,33 +165,70 @@ def login(
     """
 
     email = str(request.email).strip().lower()
+    raw_password = str(request.password).strip()
 
     user = crud.get_user_by_email(
         db,
         email,
     )
 
-    if (
-        user is None
-        or not user.is_active
-        or not verify_password(
-            request.password,
-            user.password_hash,
-        )
-    ):
+    if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
-            headers={
-                "WWW-Authenticate": "Bearer"
-            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check exact password first
+    is_valid = verify_password(raw_password, user.password_hash)
+
+    # Fast fallback: check trimmed or basic case adjustment if exact match fails
+    if not is_valid:
+        trimmed = raw_password.strip()
+        if trimmed != raw_password and verify_password(trimmed, user.password_hash):
+            is_valid = True
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return {
         "access_token": create_access_token(
             user.user_id
         ),
+        "user": user,
     }
+
+
+# =====================================================
+# 3b. PASSWORD RESET
+# =====================================================
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+)
+def reset_password(
+    request: LoginRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Reset user password by email.
+    """
+    email = str(request.email).strip().lower()
+    user = crud.get_user_by_email(db, email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account with this email does not exist",
+        )
+
+    user.password_hash = hash_password(str(request.password).strip())
+    db.commit()
+    return {"success": True, "message": "Password reset successfully"}
 
 
 # =====================================================

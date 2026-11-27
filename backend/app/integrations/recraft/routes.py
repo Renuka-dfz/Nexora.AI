@@ -70,9 +70,42 @@ async def generate_brand_image(
 
     image_client = RecraftImageClient()
     if not image_client.is_configured:
+        # Transparent fallback to OpenRouter (recraft/recraft-v3) if configured
+        from app.integrations.openrouter.image_client import OpenRouterImageClient
+        openrouter_client = OpenRouterImageClient()
+        if openrouter_client.is_configured:
+            result = await openrouter_client.generate_branding_image(
+                prompt=request.prompt,
+                company_name=request.company_name or "Nexora",
+                topic=request.topic,
+                custom_style=request.custom_style,
+                size=request.size,
+            )
+            image_bytes = result["image_bytes"]
+            static_dir = os.path.join(os.getcwd(), "static", "generated_images")
+            os.makedirs(static_dir, exist_ok=True)
+            filename = f"{request.content_id}_{uuid.uuid4().hex[:8]}.jpg" if request.content_id else f"{uuid.uuid4().hex[:12]}.jpg"
+            file_path = os.path.join(static_dir, filename)
+            with Image.open(BytesIO(image_bytes)) as generated_image:
+                generated_image.convert("RGB").save(file_path, format="JPEG", quality=92)
+            base_public_url = (settings.PUBLIC_APP_URL or "http://localhost:8000").rstrip("/")
+            public_url = f"{base_public_url}/static/generated_images/{filename}"
+            if content is not None:
+                content.image_url = public_url
+                db.commit()
+                db.refresh(content)
+            return GenerateImageResponse(
+                success=True,
+                image_url=result.get("image_data_uri", public_url),
+                public_url=public_url,
+                prompt=result.get("prompt", request.prompt),
+                model=openrouter_client.model,
+                message=f"Image generated successfully via OpenRouter ({openrouter_client.model})",
+            )
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Recraft is not configured. Set RECRAFT_API_TOKEN in .env.",
+            detail="Neither Recraft nor OpenRouter is configured. Set OPENROUTER_API_KEY in .env.",
         )
 
     file_path: Optional[str] = None
